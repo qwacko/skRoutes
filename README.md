@@ -1,6 +1,6 @@
 # skRoutes
 
-skRoutes is a package developed to provide typesafe access to SvelteKit routes. It allows you to generate URLs based on a route configuration, ensuring that the generated URLs are valid and adhere to the defined types.
+skRoutes is a package with the intent of making the URL useable as a typesafe state store for sveltekit (a first class citizen). This intent means that this package makes sveltekit routes, route parameters, and url search parameters easy to manage with validation. Simplifies navigation by generating URLs for a chosen endpoint with necessary params and searchParams. Using this library will dramatically simplify url changing, as changes in teh URL will be reflected elsewhere as type errors.
 
 ## Installation
 
@@ -12,8 +12,11 @@ pnpm add skroutes
 
 ## Features
 
-- Typesafe URL generation based on a route configuration.
+- Typesafe URL generation based on a route configuration, params, and search params.
 - Validation of route parameters and search parameters.
+- Fully typed params and search params for use throughout the application.
+- Use of nested search pararms.
+- Typescript validation of URL addresses (changing URLs will cause typescript errors)
 
 ## Usage
 
@@ -64,6 +67,39 @@ Display the generated URL in your Svelte component:
 	</div>
 </div>
 ```
+
+## Error Handling and errorURL
+
+skRoutes provides a mechanism to handle errors gracefully through the errorURL configuration. When an error occurs during URL generation, the library will redirect to the specified errorURL with an error message appended as a query parameter.
+
+### How errorURL Works
+
+When defining your route configuration, specify an errorURL:
+
+```typescript
+export const { pageInfo, urlGenerator, serverPageInfo } = skRoutes({
+	config: {
+		// ... your routes
+	},
+	errorURL: '/error'
+});
+```
+
+If an error occurs during URL generation, the urlGenerator function will return an object with the error property set to true and the url property set to the errorURL with an appended error message.
+
+You can then handle this error in your application by checking the error property and displaying the appropriate error message or redirecting to the error page.
+
+### Safe Validation
+
+It's crucial to ensure that your validation functions fail safely. If a validation error occurs, it should not crash your application but instead provide meaningful feedback or redirect to the errorURL.
+
+If you're using zod for validation, it's recommended to use the [.catch](https://github.com/colinhacks/zod#catch) functionality to handle validation errors gracefully:
+
+```typescript
+const validation = z.object({ id: z.string() }).catch({id: "default"}});
+```
+
+By following these practices, you can ensure a smooth user experience even in the face of unexpected input or errors.
 
 ## Documentation
 
