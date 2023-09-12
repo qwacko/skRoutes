@@ -1,4 +1,4 @@
-import type { Page } from '@sveltejs/kit';
+import type { Page, ServerLoadEvent } from '@sveltejs/kit';
 import { getUrlParams, objectToSearchParams } from './skSearchParams.js';
 
 // Define the types for the route configuration
@@ -151,5 +151,18 @@ export function createURLGenerator<Config extends RouteConfig>({
 		});
 	};
 
-	return { urlGenerator, pageStoreURLInfo };
+	const serverLoadValidation = <Address extends keyof Config>(
+		//@ts-expect-error {} and Address are insufficiently defined for this purpose
+		// eslint-disable-next-line @typescript-eslint/ban-types
+		data: ServerLoadEvent<Partial<Record<string, string>>, {}, Address>
+	) => {
+		//@ts-expect-error This has uncertainty about what should be available
+		return urlGenerator({
+			address: data.route.id,
+			paramsValue: data.params,
+			searchParamsValue: getUrlParams(data.url.search)
+		});
+	};
+
+	return { urlGenerator, pageStoreURLInfo, serverLoadValidation };
 }
