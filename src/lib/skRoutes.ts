@@ -1,5 +1,4 @@
-import type { Page, ServerLoadEvent } from '@sveltejs/kit';
-import { getUrlParams, objectToSearchParams } from './skSearchParams.js';
+import { getUrlParams, objectToSearchParams } from './helpers.js';
 
 // Define the types for the route configuration
 type ValidationFunction<T> = (input: T) => T;
@@ -45,7 +44,7 @@ type Input<Config, Address extends keyof Config> = {
 		  {});
 
 // Higher-order function
-export function createURLGenerator<Config extends RouteConfig>({
+export function skRoutes<Config extends RouteConfig>({
 	errorURL,
 	config
 }: {
@@ -139,9 +138,12 @@ export function createURLGenerator<Config extends RouteConfig>({
 		}
 	};
 
-	const pageStoreURLInfo = <Address extends keyof Config>(
+	const pageStoreURLInfo = <
+		Address extends keyof Config,
+		PageInfo extends { params: Record<string, string>; url: { search: string } }
+	>(
 		routeId: Address,
-		pageInfo: Page<Record<string, string>, null | string>
+		pageInfo: PageInfo
 	) => {
 		//@ts-expect-error This has uncertainty about what should be available
 		return urlGenerator({
@@ -151,10 +153,15 @@ export function createURLGenerator<Config extends RouteConfig>({
 		});
 	};
 
-	const serverLoadValidation = <Address extends keyof Config>(
-		//@ts-expect-error {} and Address are insufficiently defined for this purpose
-		// eslint-disable-next-line @typescript-eslint/ban-types
-		data: ServerLoadEvent<Partial<Record<string, string>>, {}, Address>
+	const serverLoadValidation = <
+		Address extends keyof Config,
+		PageInfo extends {
+			params: Record<string, string>;
+			url: { search: string };
+			route: { id: Address };
+		}
+	>(
+		data: PageInfo
 	) => {
 		//@ts-expect-error This has uncertainty about what should be available
 		return urlGenerator({

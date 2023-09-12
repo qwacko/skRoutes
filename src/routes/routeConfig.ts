@@ -1,7 +1,7 @@
-import { createURLGenerator } from '$lib/skNavHelper.js';
+import { skRoutes } from '$lib/skRoutes.js';
 import { z } from 'zod';
 
-export const { pageStoreURLInfo, urlGenerator, serverLoadValidation } = createURLGenerator({
+export const { pageStoreURLInfo, urlGenerator, serverLoadValidation } = skRoutes({
 	config: {
 		'/[id]': {
 			paramsValidation: z.object({ id: z.string() }).parse

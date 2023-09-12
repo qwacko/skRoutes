@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createURLGenerator, type RouteConfig } from './skNavHelper.js'; // Adjust the import path accordingly
+import { skRoutes, type RouteConfig } from './skRoutes.js'; // Adjust the import path accordingly
 import { z } from 'zod';
 
 describe('createURLGenerator - URL Generation Functionality', () => {
@@ -31,7 +31,7 @@ describe('createURLGenerator - URL Generation Functionality', () => {
 		}
 	} satisfies RouteConfig;
 
-	const { urlGenerator: generate } = createURLGenerator({
+	const { urlGenerator: generate } = skRoutes({
 		config: exampleConfig,
 		errorURL: '/error'
 	});
