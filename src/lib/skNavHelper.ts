@@ -45,7 +45,7 @@ type Input<Config, Address extends keyof Config> = {
 		  {});
 
 // Higher-order function
-function createURLGenerator<Config extends RouteConfig>(config: Config) {
+export function createURLGenerator<Config extends RouteConfig>(config: Config) {
 	const urlGenerator = <Address extends keyof Config>(
 		input: Input<Config, Address>
 	): {
@@ -119,11 +119,3 @@ const exampleConfig = {
 		}
 	}
 } satisfies RouteConfig;
-
-const { urlGenerator: generate } = createURLGenerator(exampleConfig);
-
-const result1 = generate({ address: '/example', paramsValue: { id: 'this' } });
-console.log(result1);
-
-const result2 = generate({ address: '/another', searchParamsValue: { title: 'Hello' } });
-console.log(result2);
