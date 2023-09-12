@@ -46,15 +46,10 @@ export const validatedSearchParamsStore = <
 	return paramsReturn;
 };
 
-const objectToURLSearchParams = <ValidatedType extends Record<string, unknown>>(
-	obj: ValidatedType,
-	validation: (testObject: Record<string, unknown>) => ValidatedType
-): URLSearchParams => {
-	const validatedObject = validation(obj);
-
+export const objectToSearchParams = (obj: Record<string, unknown>): URLSearchParams => {
 	const urlSearchParams = new URLSearchParams();
 
-	Object.entries(validatedObject).forEach(([key, value]) => {
+	Object.entries(obj).forEach(([key, value]) => {
 		if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
 			urlSearchParams.append(key, value.toString());
 			return;
@@ -65,12 +60,20 @@ const objectToURLSearchParams = <ValidatedType extends Record<string, unknown>>(
 	return urlSearchParams;
 };
 
+const validatedObjectToURLSearchParams = <ValidatedType extends Record<string, unknown>>(
+	obj: ValidatedType,
+	validation: (testObject: Record<string, unknown>) => ValidatedType
+): URLSearchParams => {
+	const validatedObject = validation(obj);
+	return objectToSearchParams(validatedObject);
+};
+
 export const buildURL = <ValidatedType extends Record<string, unknown>>(
 	url: string,
 	obj: ValidatedType,
 	validation: (testObject: Record<string, unknown>) => ValidatedType
 ): string => {
-	const urlSearchParams = objectToURLSearchParams(obj, validation);
+	const urlSearchParams = validatedObjectToURLSearchParams(obj, validation);
 
 	return `${url}?${urlSearchParams.toString()}`;
 };

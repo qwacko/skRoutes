@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { objectToSearchParams } from './skSearchParams.js';
 
 // Define the types for the route configuration
 type ValidationFunction<T> = (input: T) => T;
@@ -30,31 +31,77 @@ interface RouteConfig {
 }
 
 // Define the generateURL function
-function generateURL<Config extends RouteConfig, Address extends keyof Config>(
-	config: Config,
-	address: Address,
-	paramsValue: ParamsType<Config[Address]>,
-	searchParamsValue: SearchParamsType<Config[Address]>
-): {
+type Input<Config, Address extends keyof Config> = {
 	address: Address;
-	params: ValidatedParamsType<Config[Address]>;
-	searchParams: ValidatedSearchParamsType<Config[Address]>;
-} {
-	const routeDetails = config[address];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+} & (Config[Address] extends { paramsValidation: ValidationFunction<any> }
+	? { paramsValue: ParamsType<Config[Address]> }
+	: // eslint-disable-next-line @typescript-eslint/ban-types
+	  {}) &
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(Config[Address] extends { searchParamsValidation: ValidationFunction<any> }
+		? { searchParamsValue: SearchParamsType<Config[Address]> }
+		: // eslint-disable-next-line @typescript-eslint/ban-types
+		  {});
 
-	const validatedParams = routeDetails.paramsValidation
-		? routeDetails.paramsValidation(paramsValue)
-		: undefined;
+// Higher-order function
+function createURLGenerator<Config extends RouteConfig>(config: Config) {
+	const urlGenerator = <Address extends keyof Config>(
+		input: Input<Config, Address>
+	): {
+		address: Address;
+		url: string;
+		params?: ValidatedParamsType<Config[Address]>;
+		searchParams?: ValidatedSearchParamsType<Config[Address]>;
+	} => {
+		const routeDetails = config[input.address];
 
-	const validatedSearchParams = routeDetails.searchParamsValidation
-		? routeDetails.searchParamsValidation(searchParamsValue)
-		: undefined;
+		let validatedParams;
+		if (
+			'paramsValidation' in routeDetails &&
+			'paramsValue' in input &&
+			routeDetails.paramsValidation
+		) {
+			validatedParams = routeDetails.paramsValidation(input.paramsValue);
+		}
 
-	return {
-		address,
-		params: validatedParams,
-		searchParams: validatedSearchParams
+		let validatedSearchParams;
+		if (
+			'searchParamsValidation' in routeDetails &&
+			'searchParamsValue' in input &&
+			routeDetails.searchParamsValidation
+		) {
+			validatedSearchParams = routeDetails.searchParamsValidation(input.searchParamsValue);
+		}
+
+		// Construct the URL
+		let url = input.address as string;
+
+		// Replace "/[x]" with the corresponding value from validatedParams
+		if (validatedParams) {
+			for (const key in validatedParams) {
+				const regex = new RegExp(`/\\[${key}\\]`, 'g');
+				url = url.replace(regex, `/${validatedParams[key]}`);
+			}
+		}
+
+		// Remove all instances of "/(...)"
+		url = url.replace(/\/\([^)]+\)/g, '');
+
+		// Append search params to the URL
+		if (validatedSearchParams) {
+			const searchParams = objectToSearchParams(validatedSearchParams);
+			url += `?${searchParams.toString()}`;
+		}
+
+		return {
+			address: input.address,
+			params: validatedParams,
+			searchParams: validatedSearchParams,
+			url
+		};
 	};
+	return { urlGenerator };
 }
 
 // Example usage:
@@ -68,19 +115,15 @@ const exampleConfig = {
 	'/another': {
 		searchParamsValidation: (searchParams) => {
 			// Example validation logic
-
 			return z.object({ title: z.string() }).parse(searchParams);
 		}
 	}
 } satisfies RouteConfig;
 
-const result1 = generateURL(exampleConfig, '/example', { id: 'this' }, undefined);
+const { urlGenerator: generate } = createURLGenerator(exampleConfig);
+
+const result1 = generate({ address: '/example', paramsValue: { id: 'this' } });
 console.log(result1);
 
-const result2 = generateURL(
-	exampleConfig,
-	'/another', // Autocomplete will suggest "/example" and "/another"
-	undefined,
-	{ title: 'Hello' }
-);
+const result2 = generate({ address: '/another', searchParamsValue: { title: 'Hello' } });
 console.log(result2);
