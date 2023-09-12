@@ -14,6 +14,15 @@ describe('createURLGenerator - URL Generation Functionality', () => {
 		'/fallthrough/[title]': {
 			paramsValidation: z.object({ title: z.string() }).catch({ title: 'default' }).parse
 		},
+		'/optional/[[optional]]/[item]/detail': {
+			paramsValidation: z.object({ optional: z.string().optional(), item: z.string() }).parse
+		},
+		'/restParams/[...rest]/data': {
+			paramsValidation: z.object({ rest: z.string() }).parse
+		},
+		'/typedParams/[typed=number]/data': {
+			paramsValidation: z.object({ typed: z.number() }).parse
+		},
 		'/complexParams': {
 			searchParamsValidation: z.object({
 				filter: z.string(),
@@ -39,6 +48,22 @@ describe('createURLGenerator - URL Generation Functionality', () => {
 		expect(result.error).toBe(true);
 	});
 
+	it('Rest Params [...x] should be handled correctly', () => {
+		const result = generate({
+			address: '/restParams/[...rest]/data',
+			paramsValue: { rest: 'urlPortion1/urlPortion2' }
+		});
+		expect(result.url).toBe('/restParams/urlPortion1/urlPortion2/data');
+	});
+
+	it('Typed Params [x=type] must be handled correctly', () => {
+		const result = generate({
+			address: '/typedParams/[typed=number]/data',
+			paramsValue: { typed: 23 }
+		});
+		expect(result.url).toBe('/typedParams/23/data');
+	});
+
 	it('should remove all instances of "/(...)" from the address', () => {
 		const result = generate({
 			address: '/another/(optional)/[title]',
@@ -46,6 +71,22 @@ describe('createURLGenerator - URL Generation Functionality', () => {
 			searchParamsValue: { filter: 'active' }
 		});
 		expect(result.url.startsWith('/another/')).toBe(true);
+	});
+
+	it("If there is an optional portion and it isn't in the parameters this should work", () => {
+		const result = generate({
+			address: '/optional/[[optional]]/[item]/detail',
+			paramsValue: { item: 'item' }
+		});
+		expect(result.url).toBe('/optional/item/detail');
+	});
+
+	it('If there is an optional portion and it is in the parameters this should work', () => {
+		const result = generate({
+			address: '/optional/[[optional]]/[item]/detail',
+			paramsValue: { optional: 'test', item: 'notItem' }
+		});
+		expect(result.url).toBe('/optional/test/notItem/detail');
 	});
 
 	it('If fallthrough is provided, this should work (note that this is dependent on the user)', () => {

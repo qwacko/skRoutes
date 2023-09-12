@@ -84,11 +84,31 @@ export function createURLGenerator<Config extends RouteConfig>({
 			// Construct the URL
 			let url = input.address as string;
 
-			// Replace "/[x]" with the corresponding value from validatedParams
+			// Replace "/[x]" and "/[...x]" and "/[x=y]" with the corresponding value from validatedParams
 			if (validatedParams) {
 				for (const key in validatedParams) {
-					const regex = new RegExp(`/\\[${key}\\]`, 'g');
-					url = url.replace(regex, `/${validatedParams[key]}`);
+					// Handle "/[x]", "/[...x]", and "/[x=y]"
+					const regexes = [
+						new RegExp(`/\\[${key}\\]`, 'g'),
+						new RegExp(`/\\[\\.\\.\\.${key}\\]`, 'g'),
+						new RegExp(`/\\[${key}=[^\\]]+\\]`, 'g')
+					];
+
+					for (const regex of regexes) {
+						url = url.replace(regex, `/${validatedParams[key]}`);
+					}
+				}
+			}
+
+			// Handle optional URL portions "/[[x]]"
+			const optionalPortionRegex = /\/\[\[([^\]]+)\]\]/g;
+			let match;
+			while ((match = optionalPortionRegex.exec(url)) !== null) {
+				const key = match[1];
+				if (validatedParams && key in validatedParams) {
+					url = url.replace(`/[[${key}]]`, `/${validatedParams[key]}`);
+				} else {
+					url = url.replace(`/[[${key}]]`, '');
 				}
 			}
 
