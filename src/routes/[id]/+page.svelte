@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { pageStoreURLInfo, urlGenerator } from '../routeConfig.js';
+	import { pageInfo, urlGenerator } from '../routeConfig.js';
 	import { page } from '$app/stores';
 
-	$: urlInfo = pageStoreURLInfo('/[id]', $page);
+	$: urlInfo = pageInfo('/[id]', $page);
 
 	const options = ['Horse', 'Donkey', 'Cat', 'Dog'];
 </script>

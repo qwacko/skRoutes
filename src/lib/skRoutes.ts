@@ -138,7 +138,7 @@ export function skRoutes<Config extends RouteConfig>({
 		}
 	};
 
-	const pageStoreURLInfo = <
+	const pageInfo = <
 		Address extends keyof Config,
 		PageInfo extends { params: Record<string, string>; url: { search: string } }
 	>(
@@ -153,7 +153,7 @@ export function skRoutes<Config extends RouteConfig>({
 		});
 	};
 
-	const serverLoadValidation = <
+	const serverPageInfo = <
 		Address extends keyof Config,
 		PageInfo extends {
 			params: Record<string, string>;
@@ -171,5 +171,5 @@ export function skRoutes<Config extends RouteConfig>({
 		});
 	};
 
-	return { urlGenerator, pageStoreURLInfo, serverLoadValidation };
+	return { urlGenerator, pageInfo, serverPageInfo };
 }

@@ -1,7 +1,7 @@
-import { serverLoadValidation } from '../../routeConfig.js';
+import { serverPageInfo } from '../../routeConfig.js';
 
 export const load = (data) => {
-	const urlData = serverLoadValidation(data);
+	const urlData = serverPageInfo(data);
 
 	return urlData;
 };
