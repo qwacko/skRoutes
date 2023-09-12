@@ -78,7 +78,7 @@ export const buildURL = <ValidatedType extends Record<string, unknown>>(
 	return `${url}?${urlSearchParams.toString()}`;
 };
 
-const getUrlParams = (query: string): Record<string, unknown> =>
+export const getUrlParams = (query: string): Record<string, unknown> =>
 	Array.from(new URLSearchParams(query)).reduce((p, [k, v]) => {
 		try {
 			const newValue: unknown = JSON.parse(v);

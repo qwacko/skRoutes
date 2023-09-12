@@ -1,4 +1,5 @@
-import { objectToSearchParams } from './skSearchParams.js';
+import type { Page } from '@sveltejs/kit';
+import { getUrlParams, objectToSearchParams } from './skSearchParams.js';
 
 // Define the types for the route configuration
 type ValidationFunction<T> = (input: T) => T;
@@ -137,5 +138,18 @@ export function createURLGenerator<Config extends RouteConfig>({
 			};
 		}
 	};
-	return { urlGenerator };
+
+	const pageStoreURLInfo = <Address extends keyof Config>(
+		routeId: Address,
+		pageInfo: Page<Record<string, string>, null | string>
+	) => {
+		//@ts-expect-error This has uncertainty about what should be available
+		return urlGenerator({
+			address: routeId,
+			paramsValue: pageInfo.params,
+			searchParamsValue: getUrlParams(pageInfo.url.search)
+		});
+	};
+
+	return { urlGenerator, pageStoreURLInfo };
 }
