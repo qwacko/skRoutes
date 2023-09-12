@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { objectToSearchParams } from './skSearchParams.js';
 
 // Define the types for the route configuration
@@ -26,7 +25,7 @@ type ValidatedSearchParamsType<Details extends RouteDetails> =
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	Details['searchParamsValidation'] extends (...args: any[]) => infer R ? R : undefined;
 
-interface RouteConfig {
+export interface RouteConfig {
 	[address: string]: RouteDetails;
 }
 
@@ -45,77 +44,78 @@ type Input<Config, Address extends keyof Config> = {
 		  {});
 
 // Higher-order function
-export function createURLGenerator<Config extends RouteConfig>(config: Config) {
+export function createURLGenerator<Config extends RouteConfig>({
+	errorURL,
+	config
+}: {
+	errorURL: string;
+	config: Config;
+}) {
 	const urlGenerator = <Address extends keyof Config>(
 		input: Input<Config, Address>
 	): {
 		address: Address;
 		url: string;
+		error: boolean;
 		params?: ValidatedParamsType<Config[Address]>;
 		searchParams?: ValidatedSearchParamsType<Config[Address]>;
 	} => {
-		const routeDetails = config[input.address];
+		try {
+			const routeDetails = config[input.address];
 
-		let validatedParams;
-		if (
-			'paramsValidation' in routeDetails &&
-			'paramsValue' in input &&
-			routeDetails.paramsValidation
-		) {
-			validatedParams = routeDetails.paramsValidation(input.paramsValue);
-		}
-
-		let validatedSearchParams;
-		if (
-			'searchParamsValidation' in routeDetails &&
-			'searchParamsValue' in input &&
-			routeDetails.searchParamsValidation
-		) {
-			validatedSearchParams = routeDetails.searchParamsValidation(input.searchParamsValue);
-		}
-
-		// Construct the URL
-		let url = input.address as string;
-
-		// Replace "/[x]" with the corresponding value from validatedParams
-		if (validatedParams) {
-			for (const key in validatedParams) {
-				const regex = new RegExp(`/\\[${key}\\]`, 'g');
-				url = url.replace(regex, `/${validatedParams[key]}`);
+			let validatedParams;
+			if (
+				'paramsValidation' in routeDetails &&
+				'paramsValue' in input &&
+				routeDetails.paramsValidation
+			) {
+				validatedParams = routeDetails.paramsValidation(input.paramsValue);
 			}
+
+			let validatedSearchParams;
+			if (
+				'searchParamsValidation' in routeDetails &&
+				'searchParamsValue' in input &&
+				routeDetails.searchParamsValidation
+			) {
+				validatedSearchParams = routeDetails.searchParamsValidation(input.searchParamsValue);
+			}
+
+			// Construct the URL
+			let url = input.address as string;
+
+			// Replace "/[x]" with the corresponding value from validatedParams
+			if (validatedParams) {
+				for (const key in validatedParams) {
+					const regex = new RegExp(`/\\[${key}\\]`, 'g');
+					url = url.replace(regex, `/${validatedParams[key]}`);
+				}
+			}
+
+			// Remove all instances of "/(...)"
+			url = url.replace(/\/\([^)]+\)/g, '');
+
+			// Append search params to the URL
+			if (validatedSearchParams) {
+				const searchParams = objectToSearchParams(validatedSearchParams);
+				url += `?${searchParams.toString()}`;
+			}
+
+			return {
+				address: input.address,
+				params: validatedParams,
+				searchParams: validatedSearchParams,
+				url,
+				error: false
+			};
+		} catch {
+			const errorMessage = { message: 'Error generating URL' };
+			return {
+				address: input.address,
+				url: `${errorURL}?${objectToSearchParams(errorMessage)}`,
+				error: true
+			};
 		}
-
-		// Remove all instances of "/(...)"
-		url = url.replace(/\/\([^)]+\)/g, '');
-
-		// Append search params to the URL
-		if (validatedSearchParams) {
-			const searchParams = objectToSearchParams(validatedSearchParams);
-			url += `?${searchParams.toString()}`;
-		}
-
-		return {
-			address: input.address,
-			params: validatedParams,
-			searchParams: validatedSearchParams,
-			url
-		};
 	};
 	return { urlGenerator };
 }
-
-// Example usage:
-const exampleConfig = {
-	'/example': {
-		paramsValidation: (urlParamsObject) => {
-			// Example validation logic
-			return z.object({ id: z.string() }).parse(urlParamsObject);
-		}
-	},
-	'/another': {
-		searchParamsValidation: (searchParams) => {
-			// Example validation logic
-			return z.object({ title: z.string() }).parse(searchParams);
-		}
-	}
-} satisfies RouteConfig;
