@@ -1,6 +1,6 @@
 {
-	"name": "sksearchparams",
-	"version": "0.0.2",
+	"name": "skroutes",
+	"version": "0.0.3",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && npm run package",
@@ -44,7 +44,8 @@
 		"tslib": "^2.4.1",
 		"typescript": "^5.0.0",
 		"vite": "^4.4.2",
-		"vitest": "^0.34.0"
+		"vitest": "^0.34.0",
+		"zod": "^3.22.2"
 	},
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
