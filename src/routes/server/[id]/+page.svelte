@@ -9,8 +9,12 @@
 	{JSON.stringify(data)}
 	<div class="item-row">
 		{#each options as currentOption}
-			<a href={urlGenerator({ address: '/server/[id]', paramsValue: { id: currentOption } }).url}
-				>{currentOption}</a
+			<a
+				href={urlGenerator({
+					address: '/server/[id]',
+					paramsValue: { id: currentOption },
+					searchParamsValue: { data: 'Data' }
+				}).url}>{currentOption}</a
 			>
 		{/each}
 	</div>
