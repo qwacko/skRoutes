@@ -7,7 +7,8 @@ export const { pageInfo, urlGenerator, serverPageInfo } = skRoutes({
 			paramsValidation: z.object({ id: z.string() }).parse
 		},
 		'/server/[id]': {
-			paramsValidation: z.object({ id: z.string() }).parse
+			paramsValidation: z.object({ id: z.string() }).parse,
+			searchParamsValidation: z.object({ data: z.string().optional() }).parse
 		}
 	},
 	errorURL: '/error'

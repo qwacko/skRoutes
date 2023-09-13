@@ -161,11 +161,12 @@ export function skRoutes<Config extends RouteConfig>({
 			route: { id: Address };
 		}
 	>(
+		routeId: Address,
 		data: PageInfo
 	) => {
 		//@ts-expect-error This has uncertainty about what should be available
 		return urlGenerator({
-			address: data.route.id,
+			address: routeId,
 			paramsValue: data.params,
 			searchParamsValue: getUrlParams(data.url.search)
 		});
