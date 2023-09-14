@@ -8,12 +8,10 @@
 </script>
 
 <div class="page">
-	{JSON.stringify(urlInfo)}
+	{JSON.stringify(urlInfo.current)}
 	<div class="item-row">
 		{#each options as currentOption}
-			<a href={urlGenerator({ address: '/[id]', paramsValue: { id: currentOption } }).url}
-				>{currentOption}</a
-			>
+			<a href={urlInfo.updateParams({ params: { id: currentOption } }).url}>{currentOption}</a>
 		{/each}
 	</div>
 </div>
