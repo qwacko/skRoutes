@@ -1,3 +1,4 @@
+import { merge } from 'lodash-es';
 import { getUrlParams, objectToSearchParams } from './helpers.js';
 
 // Define the types for the route configuration
@@ -28,6 +29,12 @@ type ValidatedSearchParamsType<Details extends RouteDetails> =
 export interface RouteConfig {
 	[address: string]: RouteDetails;
 }
+
+type DeepPartial<T> = T extends object
+	? {
+			[P in keyof T]?: DeepPartial<T[P]>;
+	  }
+	: T;
 
 // Define the generateURL function
 type Input<Config, Address extends keyof Config> = {
@@ -146,11 +153,33 @@ export function skRoutes<Config extends RouteConfig>({
 		pageInfo: PageInfo
 	) => {
 		//@ts-expect-error This has uncertainty about what should be available
-		return urlGenerator({
+		const current = urlGenerator({
 			address: routeId,
 			paramsValue: pageInfo.params,
 			searchParamsValue: getUrlParams(pageInfo.url.search)
 		});
+
+		const updateParams = ({
+			//@ts-expect-error This has uncertainty about what should be available
+			params = {},
+			//@ts-expect-error This has uncertainty about what should be available
+			searchParams = {}
+		}: {
+			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
+			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
+		}) => {
+			const mergedParams = merge(pageInfo.params, params);
+			const mergedSearch = merge(getUrlParams(pageInfo.url.search), searchParams);
+
+			//@ts-expect-error This has uncertainty about what should be available
+			return urlGenerator({
+				address: routeId,
+				paramsValue: mergedParams,
+				searchParamsValue: mergedSearch
+			});
+		};
+
+		return { current, updateParams };
 	};
 
 	const serverPageInfo = <

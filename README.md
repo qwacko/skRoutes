@@ -13,6 +13,7 @@ pnpm add skroutes
 ## Features
 
 - Typesafe URL generation based on a route configuration, params, and search params.
+- Easily generate new url with different parameters or searchParameters from current url.
 - Validation of route parameters and search parameters.
 - Fully typed params and search params for use throughout the application.
 - Use of nested search pararms.
@@ -45,7 +46,7 @@ Use the urlGenerator function to generate URLs:
 const url = urlGenerator({ address: '/[id]', paramsValue: { id: 'Horse' } }).url;
 ```
 
-Display the generated URL in your Svelte component:
+Display the generated URL in your Svelte component (note that this includes the ` current`` url, as well as  `updateParams` which generates a url based on updated parameters):
 
 ```svelte
 <script lang="ts">
@@ -57,12 +58,10 @@ Display the generated URL in your Svelte component:
 </script>
 
 <div class="page">
-	{JSON.stringify(urlInfo)}
+	{JSON.stringify(urlInfo.current)}
 	<div class="item-row">
 		{#each options as currentOption}
-			<a href={urlGenerator({ address: '/[id]', paramsValue: { id: currentOption } }).url}>
-				{currentOption}
-			</a>
+			<a href={urlInfo.updateParams({ params: { id: currentOption } }).url}>{currentOption}</a>
 		{/each}
 	</div>
 </div>
