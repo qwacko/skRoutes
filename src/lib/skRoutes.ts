@@ -198,11 +198,35 @@ export function skRoutes<Config extends RouteConfig>({
 		data: PageInfo
 	) => {
 		//@ts-expect-error This has uncertainty about what should be available
-		return urlGenerator({
+		const current = urlGenerator({
 			address: routeId,
 			paramsValue: data.params,
 			searchParamsValue: getUrlParams(data.url.search)
 		});
+
+		const updateParams = ({
+			//@ts-expect-error This has uncertainty about what should be available
+			params = {},
+			//@ts-expect-error This has uncertainty about what should be available
+			searchParams = {}
+		}: {
+			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
+			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
+		}) => {
+			const mergedParams = mergeWith(data.params, params, (a, b) => (isArray(b) ? b : undefined));
+			const mergedSearch = mergeWith(getUrlParams(data.url.search), searchParams, (a, b) =>
+				isArray(b) ? b : undefined
+			);
+
+			//@ts-expect-error This has uncertainty about what should be available
+			return urlGenerator({
+				address: routeId,
+				paramsValue: mergedParams,
+				searchParamsValue: mergedSearch
+			});
+		};
+
+		return { current, updateParams };
 	};
 
 	return { urlGenerator, pageInfo, serverPageInfo };
