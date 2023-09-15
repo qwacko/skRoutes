@@ -36,9 +36,10 @@ const exampleConfig = {
 					.array(z.object({ key: z.enum(['one', 'two', 'three']), dir: z.enum(['asc', 'desc']) }))
 					.optional(),
 				page: z.number().optional().default(0),
-				perPage: z.number().optional().default(10)
+				perPage: z.number().optional().default(10),
+				notRequired: z.string().nullable().optional()
 			})
-			.catch({}).parse
+			.catch({ page: 0, perPage: 10 }).parse
 	},
 	'/complexParams': {
 		searchParamsValidation: z.object({
@@ -258,5 +259,76 @@ describe('Check Page Info Functionality', () => {
 
 		expect(newPage.url).not.toContain('Error+generating+URL');
 		expect(newPage.url).toContain(objectToSearchParams(targetConfig).toString());
+	});
+
+	it('Test 205 : Test that merging a blank array works correctly', () => {
+		// mergeWith({}, oldValues, updatedValues, (a, b) => (_.isArray(b) ? b : undefined));
+		const searchData = objectToSearchParams({
+			order: [
+				{ key: 'one', dir: 'asc' },
+				{ key: 'two', dir: 'asc' }
+			],
+			page: 1,
+			perPage: 10
+		});
+
+		const targetSearchData = objectToSearchParams({
+			order: [],
+			page: 1,
+			perPage: 10
+		});
+
+		const complexArrayData = pageInfo('/complexArrayParams/[id]', {
+			params: { id: 'this' },
+			url: {
+				search: searchData.toString()
+			}
+		});
+
+		const newPage = complexArrayData.updateParams({
+			searchParams: {
+				order: []
+			}
+		});
+
+		expect(newPage.url).not.toContain('Error+generating+URL');
+		expect(newPage.url).toContain(targetSearchData.toString());
+	});
+
+	it('Test 206 : Removing Keys Is Possible', () => {
+		const searchData = objectToSearchParams({
+			order: [
+				{ key: 'one', dir: 'asc' },
+				{ key: 'two', dir: 'asc' }
+			],
+			page: 1,
+			perPage: 10,
+			notRequired: 'Active'
+		});
+
+		const targetSearchData = objectToSearchParams({
+			order: [
+				{ key: 'one', dir: 'asc' },
+				{ key: 'two', dir: 'asc' }
+			],
+			page: 1,
+			perPage: 10
+		});
+
+		const complexArrayData = pageInfo('/complexArrayParams/[id]', {
+			params: { id: 'this' },
+			url: {
+				search: searchData.toString()
+			}
+		});
+
+		const newPage = complexArrayData.updateParams({
+			searchParams: {
+				notRequired: undefined
+			}
+		});
+
+		expect(newPage.url).not.toContain('Error+generating+URL');
+		expect(newPage.url).toContain(targetSearchData.toString());
 	});
 });
