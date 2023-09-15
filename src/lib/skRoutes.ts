@@ -153,15 +153,14 @@ export function skRoutes<Config extends RouteConfig>({
 	>({
 		routeId,
 		pageInfo,
-		updateDelay,
+		updateDelay = 1000, // Default to 1 second if not provided
 		onUpdate
 	}: {
 		routeId: Address;
 		pageInfo: Readable<PageInfo>;
 		updateDelay?: number;
-		onUpdate: (newUrl: string) => undefined;
+		onUpdate: (newUrl: string) => unknown;
 	}) => {
-		// Initial values
 		let timeoutId: NodeJS.Timeout | null = null;
 		const initialData = get(pageInfo);
 		//@ts-expect-error This has uncertainty about what should be available
@@ -171,50 +170,52 @@ export function skRoutes<Config extends RouteConfig>({
 			searchParamsValue: getUrlParams(initialData.url.search)
 		});
 
-		// Subscribe to pageInfo changes to reinitialize the user store
-		const unsubscribeFromPageInfo = pageInfo.subscribe((data) => {
-			//@ts-expect-error This has uncertainty about what should be available
-			const current = urlGenerator({
-				address: routeId,
-				paramsValue: data.params,
-				searchParamsValue: getUrlParams(data.url.search)
-			});
-
-			store.set({
-				params: current.params,
-				searchParams: current.searchParams
-			});
+		const store = writable({
+			params: initialURLData.params,
+			searchParams: initialURLData.searchParams
 		});
 
-		const store = writable(
-			{
-				params: initialURLData.params,
-				searchParams: initialURLData.searchParams
-			},
-			() => {
-				const unsubscribeFromStore = store.subscribe(({ params, searchParams }) => {
-					if (timeoutId) {
-						clearTimeout(timeoutId);
-					}
+		const originalSubscribe = store.subscribe;
 
-					timeoutId = setTimeout(() => {
-						//@ts-expect-error This has uncertainty about what should be available
-						const generatedUrl = urlGenerator({
-							address: routeId,
-							paramsValue: params,
-							searchParamsValue: searchParams
-						});
-
-						onUpdate(generatedUrl.url);
-					}, updateDelay); // 1 second delay, adjust as needed
+		store.subscribe = (run, invalidate) => {
+			const unsubscribeFromPageInfo = pageInfo.subscribe((data) => {
+				//@ts-expect-error This has uncertainty about what should be available
+				const current = urlGenerator({
+					address: routeId,
+					paramsValue: data.params,
+					searchParamsValue: getUrlParams(data.url.search)
 				});
 
-				return () => {
-					unsubscribeFromStore();
-					unsubscribeFromPageInfo();
-				};
-			}
-		);
+				store.set({
+					params: current.params,
+					searchParams: current.searchParams
+				});
+			});
+
+			const unsubscribeFromStore = originalSubscribe((updatedData) => {
+				run(updatedData); // Call the original subscriber
+
+				if (timeoutId) {
+					clearTimeout(timeoutId);
+				}
+
+				timeoutId = setTimeout(() => {
+					//@ts-expect-error This has uncertainty about what should be available
+					const generatedUrl = urlGenerator({
+						address: routeId,
+						paramsValue: updatedData.params,
+						searchParamsValue: updatedData.searchParams
+					});
+
+					onUpdate(generatedUrl.url);
+				}, updateDelay);
+			}, invalidate);
+
+			return () => {
+				unsubscribeFromStore();
+				unsubscribeFromPageInfo();
+			};
+		};
 
 		return store;
 	};
