@@ -1,4 +1,4 @@
-import { merge } from 'lodash-es';
+import { isArray, merge, mergeWith } from 'lodash-es';
 import { getUrlParams, objectToSearchParams } from './helpers.js';
 
 // Define the types for the route configuration
@@ -168,8 +168,12 @@ export function skRoutes<Config extends RouteConfig>({
 			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
 			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
 		}) => {
-			const mergedParams = merge(pageInfo.params, params);
-			const mergedSearch = merge(getUrlParams(pageInfo.url.search), searchParams);
+			const mergedParams = mergeWith(pageInfo.params, params, (a, b) =>
+				isArray(b) ? b : undefined
+			);
+			const mergedSearch = mergeWith(getUrlParams(pageInfo.url.search), searchParams, (a, b) =>
+				isArray(b) ? b : undefined
+			);
 
 			//@ts-expect-error This has uncertainty about what should be available
 			return urlGenerator({
