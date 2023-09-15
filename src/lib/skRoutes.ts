@@ -1,5 +1,7 @@
 import { isArray, merge, mergeWith } from 'lodash-es';
 import { getUrlParams, objectToSearchParams } from './helpers.js';
+import type { Readable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 // Define the types for the route configuration
 type ValidationFunction<T> = (input: T) => T;
@@ -145,6 +147,78 @@ export function skRoutes<Config extends RouteConfig>({
 		}
 	};
 
+	const pageInfoStore = <
+		Address extends keyof Config,
+		PageInfo extends { params: Record<string, string>; url: { search: string } }
+	>({
+		routeId,
+		pageInfo,
+		updateDelay,
+		onUpdate
+	}: {
+		routeId: Address;
+		pageInfo: Readable<PageInfo>;
+		updateDelay?: number;
+		onUpdate: (newUrl: string) => undefined;
+	}) => {
+		// Initial values
+		let timeoutId: NodeJS.Timeout | null = null;
+		const initialData = get(pageInfo);
+		//@ts-expect-error This has uncertainty about what should be available
+		const initialURLData = urlGenerator({
+			address: routeId,
+			paramsValue: initialData.params,
+			searchParamsValue: getUrlParams(initialData.url.search)
+		});
+
+		// Subscribe to pageInfo changes to reinitialize the user store
+		const unsubscribeFromPageInfo = pageInfo.subscribe((data) => {
+			//@ts-expect-error This has uncertainty about what should be available
+			const current = urlGenerator({
+				address: routeId,
+				paramsValue: data.params,
+				searchParamsValue: getUrlParams(data.url.search)
+			});
+
+			store.set({
+				params: current.params,
+				searchParams: current.searchParams
+			});
+		});
+
+		const store = writable(
+			{
+				params: initialURLData.params,
+				searchParams: initialURLData.searchParams
+			},
+			() => {
+				const unsubscribeFromStore = store.subscribe(({ params, searchParams }) => {
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+					}
+
+					timeoutId = setTimeout(() => {
+						//@ts-expect-error This has uncertainty about what should be available
+						const generatedUrl = urlGenerator({
+							address: routeId,
+							paramsValue: params,
+							searchParamsValue: searchParams
+						});
+
+						onUpdate(generatedUrl.url);
+					}, updateDelay); // 1 second delay, adjust as needed
+				});
+
+				return () => {
+					unsubscribeFromStore();
+					unsubscribeFromPageInfo();
+				};
+			}
+		);
+
+		return store;
+	};
+
 	const pageInfo = <
 		Address extends keyof Config,
 		PageInfo extends { params: Record<string, string>; url: { search: string } }
@@ -229,5 +303,5 @@ export function skRoutes<Config extends RouteConfig>({
 		return { current, updateParams };
 	};
 
-	return { urlGenerator, pageInfo, serverPageInfo };
+	return { urlGenerator, pageInfo, serverPageInfo, pageInfoStore };
 }
