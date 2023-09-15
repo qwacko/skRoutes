@@ -17,7 +17,8 @@ pnpm add skroutes
 - Validation of route parameters and search parameters.
 - Fully typed params and search params for use throughout the application.
 - Use of nested search pararms.
-- Typescript validation of URL addresses (changing URLs will cause typescript errors)
+- Typescript validation of URL addresses (changing URLs will cause typescript errors).
+- Ability to access params and searchParams as a store, with automatic navigation (with debouncing)
 
 ## Usage
 
