@@ -26,9 +26,8 @@
 		type="string"
 		value={$pageStore.searchParams?.nested?.item1}
 		on:input={(newValue) => {
-			if (newValue.target) {
+			if (newValue.target && 'value' in newValue.target) {
 				const newString = newValue.target.value;
-				console.log({ newString });
 				const newObject = set($pageStore, 'searchParams.nested.item1', newString);
 				$pageStore = newObject;
 			}
