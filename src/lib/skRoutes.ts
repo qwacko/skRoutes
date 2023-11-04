@@ -146,6 +146,46 @@ export function skRoutes<Config extends RouteConfig>({
 			};
 		}
 	};
+	const pageInfo = <
+		Address extends keyof Config,
+		PageInfo extends { params: Record<string, string>; url: { search: string } }
+	>(
+		routeId: Address,
+		pageInfo: PageInfo
+	) => {
+		//@ts-expect-error This has uncertainty about what should be available
+		const current = urlGenerator({
+			address: routeId,
+			paramsValue: pageInfo.params,
+			searchParamsValue: getUrlParams(pageInfo.url.search)
+		});
+
+		const updateParams = ({
+			//@ts-expect-error This has uncertainty about what should be available
+			params = {},
+			//@ts-expect-error This has uncertainty about what should be available
+			searchParams = {}
+		}: {
+			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
+			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
+		}) => {
+			const mergedParams = mergeWith(pageInfo.params, params, (a, b) =>
+				isArray(b) ? b : undefined
+			);
+			const mergedSearch = mergeWith(getUrlParams(pageInfo.url.search), searchParams, (a, b) =>
+				isArray(b) ? b : undefined
+			);
+
+			//@ts-expect-error This has uncertainty about what should be available
+			return urlGenerator({
+				address: routeId,
+				paramsValue: mergedParams,
+				searchParamsValue: mergedSearch
+			});
+		};
+
+		return { current, updateParams };
+	};
 
 	const pageInfoStore = <
 		Address extends keyof Config,
@@ -218,47 +258,6 @@ export function skRoutes<Config extends RouteConfig>({
 		};
 
 		return store;
-	};
-
-	const pageInfo = <
-		Address extends keyof Config,
-		PageInfo extends { params: Record<string, string>; url: { search: string } }
-	>(
-		routeId: Address,
-		pageInfo: PageInfo
-	) => {
-		//@ts-expect-error This has uncertainty about what should be available
-		const current = urlGenerator({
-			address: routeId,
-			paramsValue: pageInfo.params,
-			searchParamsValue: getUrlParams(pageInfo.url.search)
-		});
-
-		const updateParams = ({
-			//@ts-expect-error This has uncertainty about what should be available
-			params = {},
-			//@ts-expect-error This has uncertainty about what should be available
-			searchParams = {}
-		}: {
-			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
-			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
-		}) => {
-			const mergedParams = mergeWith(pageInfo.params, params, (a, b) =>
-				isArray(b) ? b : undefined
-			);
-			const mergedSearch = mergeWith(getUrlParams(pageInfo.url.search), searchParams, (a, b) =>
-				isArray(b) ? b : undefined
-			);
-
-			//@ts-expect-error This has uncertainty about what should be available
-			return urlGenerator({
-				address: routeId,
-				paramsValue: mergedParams,
-				searchParamsValue: mergedSearch
-			});
-		};
-
-		return { current, updateParams };
 	};
 
 	const serverPageInfo = <
