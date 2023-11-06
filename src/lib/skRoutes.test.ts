@@ -153,6 +153,11 @@ describe('createURLGenerator - URL Generation Functionality', () => {
 			error: false
 		});
 	});
+
+	it("Test 112 : Undefined search params shouldn't appear in url", () => {
+		const result = generate({ address: '/arrayParams', searchParamsValue: { order: undefined } });
+		expect(result.url).not.toContain('undefined');
+	});
 });
 
 describe('Check Page Info Functionality', () => {

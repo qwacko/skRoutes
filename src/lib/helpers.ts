@@ -1,13 +1,36 @@
 import { isObject } from 'lodash-es';
 
-export const objectToSearchParams = (obj: Record<string, unknown>): URLSearchParams => {
+function pruneUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+	const result: Record<string, unknown> = {};
+
+	Object.keys(obj).forEach((key) => {
+		const value = obj[key];
+		if (Array.isArray(value)) {
+			// Directly map arrays without modification
+			result[key] = value;
+		} else if (typeof value === 'object' && value !== null) {
+			// Recursively prune sub-objects
+			result[key] = pruneUndefined(value as Record<string, unknown>);
+		} else if (value !== undefined) {
+			// Copy value if it's not undefined
+			result[key] = value;
+		}
+	});
+
+	return result;
+}
+
+export const objectToSearchParams = (objIn: Record<string, unknown>): URLSearchParams => {
 	const urlSearchParams = new URLSearchParams();
+
+	const obj = pruneUndefined(objIn);
 
 	Object.entries(obj).forEach(([key, value]) => {
 		if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
 			urlSearchParams.append(key, value.toString());
 			return;
 		}
+
 		urlSearchParams.append(key, JSON.stringify(value));
 	});
 
