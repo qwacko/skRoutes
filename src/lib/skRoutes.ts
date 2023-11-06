@@ -1,5 +1,4 @@
-import { isArray, merge, mergeWith } from 'lodash-es';
-import { getUrlParams, objectToSearchParams } from './helpers.js';
+import { customMerge, getUrlParams, objectToSearchParams } from './helpers.js';
 import type { Readable } from 'svelte/store';
 import { writable, get } from 'svelte/store';
 
@@ -169,11 +168,11 @@ export function skRoutes<Config extends RouteConfig>({
 			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
 			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
 		}) => {
-			const mergedParams = mergeWith(pageInfo.params, params, (a, b) =>
-				isArray(b) ? b : undefined
-			);
-			const mergedSearch = mergeWith(getUrlParams(pageInfo.url.search), searchParams, (a, b) =>
-				isArray(b) ? b : undefined
+			const mergedParams = customMerge(pageInfo.params, params as Record<string, string>);
+
+			const mergedSearch = customMerge(
+				getUrlParams(pageInfo.url.search),
+				searchParams as Record<string, string>
 			);
 
 			//@ts-expect-error This has uncertainty about what should be available
@@ -287,9 +286,10 @@ export function skRoutes<Config extends RouteConfig>({
 			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
 			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
 		}) => {
-			const mergedParams = mergeWith(data.params, params, (a, b) => (isArray(b) ? b : undefined));
-			const mergedSearch = mergeWith(getUrlParams(data.url.search), searchParams, (a, b) =>
-				isArray(b) ? b : undefined
+			const mergedParams = customMerge(data.params, params as Record<string, string>);
+			const mergedSearch = customMerge(
+				getUrlParams(data.url.search),
+				searchParams as Record<string, string>
 			);
 
 			//@ts-expect-error This has uncertainty about what should be available
