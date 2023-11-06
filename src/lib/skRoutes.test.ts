@@ -330,5 +330,6 @@ describe('Check Page Info Functionality', () => {
 
 		expect(newPage.url).not.toContain('Error+generating+URL');
 		expect(newPage.url).toContain(targetSearchData.toString());
+		expect(newPage.url).not.toContain('notRequired');
 	});
 });
