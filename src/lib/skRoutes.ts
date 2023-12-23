@@ -200,7 +200,7 @@ export function skRoutes<Config extends RouteConfig>({
 		updateDelay?: number;
 		onUpdate: (newUrl: string) => unknown;
 	}) => {
-		let timeoutId: NodeJS.Timeout | null = null;
+		let timeoutId: number | null = null;
 		const initialData = get(pageInfo);
 		//@ts-expect-error This has uncertainty about what should be available
 		const initialURLData = urlGenerator({
