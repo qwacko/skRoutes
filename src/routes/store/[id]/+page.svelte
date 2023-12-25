@@ -2,8 +2,6 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { objectToSearchParams } from '$lib/helpers.js';
-	import { set, update } from 'lodash-es';
 	import { pageInfoStore } from '../../routeConfig.js';
 
 	const pageStore = pageInfoStore({
@@ -12,6 +10,25 @@
 		updateDelay: 500,
 		onUpdate: (newURL) => (browser ? goto(newURL) : undefined)
 	});
+
+	const handleInput = (
+		newValue: Event & {
+			currentTarget: EventTarget & HTMLInputElement;
+		}
+	) => {
+		if (newValue.target && 'value' in newValue.target) {
+			const newString = newValue.target.value as string;
+			if ($pageStore.searchParams && $pageStore.searchParams.nested) {
+				$pageStore.searchParams.nested.item1 = newString;
+			} else {
+				// Handle the case where `nested` doesn't exist yet
+				$pageStore.searchParams = {
+					...$pageStore.searchParams,
+					nested: { item1: newString }
+				};
+			}
+		}
+	};
 </script>
 
 {#if $pageStore.params}
@@ -25,13 +42,7 @@
 		id="topLevel"
 		type="string"
 		value={$pageStore.searchParams?.nested?.item1}
-		on:input={(newValue) => {
-			if (newValue.target && 'value' in newValue.target) {
-				const newString = newValue.target.value;
-				const newObject = set($pageStore, 'searchParams.nested.item1', newString);
-				$pageStore = newObject;
-			}
-		}}
+		on:input={(newValue) => handleInput(newValue)}
 	/>
 {/if}
 
