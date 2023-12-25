@@ -1,4 +1,6 @@
-import { isObject } from 'lodash-es';
+function isObject(item: any): boolean {
+	return item && typeof item === 'object' && !Array.isArray(item);
+}
 
 function pruneUndefined(obj: Record<string, unknown>): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
