@@ -5,9 +5,9 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 // Import schema definitions from page files
 import { _routeConfig as routeConfig0 } from '../../../src/routes/[id]/+page';
-import { _paramsSchema as routeConfig1_params, _searchParamsSchema as routeConfig1_searchParams } from '../../../src/routes/api/users/[id]/+server';
+import { _routeConfig as routeConfig1 } from '../../../src/routes/api/users/[id]/+server';
 import { _routeConfig as routeConfig2 } from '../../../src/routes/products/[id]/+page.server';
-import { _paramsSchema as routeConfig3_params, _searchParamsSchema as routeConfig3_searchParams } from '../../../src/routes/server/[id]/+page.server';
+import { _routeConfig as routeConfig3 } from '../../../src/routes/server/[id]/+page.server';
 import { _routeConfig as routeConfig4 } from '../../../src/routes/type-test/[id]/+page.server';
 import { _routeConfig as routeConfig5 } from '../../../src/routes/users/[id]/+page.server';
 
@@ -17,16 +17,16 @@ export const routeConfig = {
           searchParamsValidation: routeConfig0.searchParamsValidation,
         },
   '/api/users/[id]': {
-          paramsValidation: routeConfig1_params,
-          searchParamsValidation: routeConfig1_searchParams,
+          paramsValidation: routeConfig1.paramsValidation,
+          searchParamsValidation: routeConfig1.searchParamsValidation,
         },
   '/products/[id]': {
           paramsValidation: routeConfig2.paramsValidation,
           searchParamsValidation: routeConfig2.searchParamsValidation,
         },
   '/server/[id]': {
-          paramsValidation: routeConfig3_params,
-          searchParamsValidation: routeConfig3_searchParams,
+          paramsValidation: routeConfig3.paramsValidation,
+          searchParamsValidation: routeConfig3.searchParamsValidation,
         },
   '/type-test/[id]': {
           paramsValidation: routeConfig4.paramsValidation,
@@ -45,16 +45,16 @@ export const routeValidators = {
     searchParamsValidator: routeConfig0.searchParamsValidation,
   },
   '/api/users/[id]': {
-    paramsValidator: routeConfig1_params,
-    searchParamsValidator: routeConfig1_searchParams,
+    paramsValidator: routeConfig1.paramsValidation,
+    searchParamsValidator: routeConfig1.searchParamsValidation,
   },
   '/products/[id]': {
     paramsValidator: routeConfig2.paramsValidation,
     searchParamsValidator: routeConfig2.searchParamsValidation,
   },
   '/server/[id]': {
-    paramsValidator: routeConfig3_params,
-    searchParamsValidator: routeConfig3_searchParams,
+    paramsValidator: routeConfig3.paramsValidation,
+    searchParamsValidator: routeConfig3.searchParamsValidation,
   },
   '/type-test/[id]': {
     paramsValidator: routeConfig4.paramsValidation,
@@ -72,9 +72,9 @@ export type RouteKeys = '/[id]' | '/api/users/[id]' | '/products/[id]' | '/serve
 // Export type mapping for schema inference
 export type RouteTypeMap = {
   '/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig0.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig0.searchParamsValidation> };
-  '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig1_params>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig1_searchParams> };
+  '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig1.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig1.searchParamsValidation> };
   '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig2.searchParamsValidation> };
-  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig3_params>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3_searchParams> };
+  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig3.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
   '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig4.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig4.searchParamsValidation> };
   '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig5.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig5.searchParamsValidation> }
 };
@@ -82,9 +82,9 @@ export type RouteTypeMap = {
 // Export validator type mapping
 export type RouteValidatorMap = {
   '/[id]': { paramsValidator: typeof routeConfig0.paramsValidation; searchParamsValidator: typeof routeConfig0.searchParamsValidation };
-  '/api/users/[id]': { paramsValidator: typeof routeConfig1_params; searchParamsValidator: typeof routeConfig1_searchParams };
+  '/api/users/[id]': { paramsValidator: typeof routeConfig1.paramsValidation; searchParamsValidator: typeof routeConfig1.searchParamsValidation };
   '/products/[id]': { paramsValidator: typeof routeConfig2.paramsValidation; searchParamsValidator: typeof routeConfig2.searchParamsValidation };
-  '/server/[id]': { paramsValidator: typeof routeConfig3_params; searchParamsValidator: typeof routeConfig3_searchParams };
+  '/server/[id]': { paramsValidator: typeof routeConfig3.paramsValidation; searchParamsValidator: typeof routeConfig3.searchParamsValidation };
   '/type-test/[id]': { paramsValidator: typeof routeConfig4.paramsValidation; searchParamsValidator: typeof routeConfig4.searchParamsValidation };
   '/users/[id]': { paramsValidator: typeof routeConfig5.paramsValidation; searchParamsValidator: typeof routeConfig5.searchParamsValidation }
 };

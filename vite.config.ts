@@ -6,7 +6,7 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		skRoutesPlugin({
-			imports: ["import { z } from 'zod';"],
+			imports: [],
 			errorURL: '/error'
 		})
 	],

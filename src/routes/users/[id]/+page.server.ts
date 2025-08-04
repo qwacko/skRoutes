@@ -1,4 +1,4 @@
-import { serverPageInfo } from '$lib/auto-skroutes';
+import { serverPageInfo } from '$lib/auto-skroutes-server.js';
 import type { RouteConfigDefinition } from '$lib/route-config-types';
 import { z } from 'zod';
 

@@ -1,16 +1,14 @@
 import { skRoutes } from './skRoutes.js';
 import { 
-  routeConfig, 
-  routeValidators,
+  clientRouteConfig, 
   type RouteKeys, 
   type RouteTypeMap, 
-  type RouteValidatorMap,
   type RouteParams,
   type RouteSearchParams,
   pluginOptions 
-} from './.generated/skroutes-config.js';
+} from './.generated/skroutes-client-config.js';
 
-export type { RouteKeys, RouteTypeMap, RouteValidatorMap, RouteParams, RouteSearchParams };
+export type { RouteKeys, RouteTypeMap, RouteParams, RouteSearchParams };
 
 export function createAutoSkRoutes(
   options?: {
@@ -19,7 +17,7 @@ export function createAutoSkRoutes(
   }
 ) {
   const finalConfig = {
-    ...routeConfig,
+    ...clientRouteConfig,
     ...(options?.config || {})
   };
   
@@ -54,29 +52,6 @@ export function pageInfo<Address extends RouteKeys>(
   return defaultInstance.pageInfo(routeId, pageInfo) as any;
 }
 
-export function serverPageInfo<Address extends RouteKeys>(
-  routeId: Address,
-  data: {
-    params: Record<string, string>;
-    url: { search: string };
-    route: { id: Address };
-  }
-): {
-  current: {
-    address: Address;
-    url: string;
-    error: boolean;
-    params: RouteTypeMap[Address]['params'];
-    searchParams: RouteTypeMap[Address]['searchParams'];
-  };
-  updateParams: (opts: {
-    params?: Partial<RouteTypeMap[Address]['params']>;
-    searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
-  }) => any;
-} {
-  return defaultInstance.serverPageInfo(routeId, data) as any;
-}
-
 export function pageInfoStore<Address extends RouteKeys>(config: {
   routeId: Address;
   pageInfo: import('svelte/store').Readable<{
@@ -87,20 +62,4 @@ export function pageInfoStore<Address extends RouteKeys>(config: {
   onUpdate: (newUrl: string) => unknown;
 }) {
   return defaultInstance.pageInfoStore(config);
-}
-
-// Route validation access function
-export function routeInfo<Address extends RouteKeys>(routeId: Address): {
-  paramsValidator: RouteValidatorMap[Address]['paramsValidator'];
-  searchParamsValidator: RouteValidatorMap[Address]['searchParamsValidator'];
-  paramsType: RouteTypeMap[Address]['params'];
-  searchParamsType: RouteTypeMap[Address]['searchParams'];
-} {
-  const validators = routeValidators[routeId];
-  return {
-    paramsValidator: validators.paramsValidator as any,
-    searchParamsValidator: validators.searchParamsValidator as any,
-    paramsType: {} as RouteTypeMap[Address]['params'],
-    searchParamsType: {} as RouteTypeMap[Address]['searchParams']
-  };
 }
