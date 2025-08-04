@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pageInfo, urlGenerator } from '../routeConfig.js';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
 	import { page } from '$app/stores';
 
 	$: urlInfo = pageInfo('/[id]', $page);

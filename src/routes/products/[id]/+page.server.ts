@@ -1,5 +1,6 @@
 import { serverPageInfo } from '$lib/auto-skroutes';
-import { skRoutes } from '$lib/skRoutes.js';
+import type { RouteConfigDefinition } from '$lib/route-config-types';
+import { skRoutes, type RouteConfig } from '$lib/skRoutes.js';
 import { z } from 'zod';
 
 // Route configuration for the plugin (using current library format)
@@ -13,7 +14,7 @@ export const _routeConfig = {
 		inStock: z.coerce.boolean().default(true),
 		page: z.coerce.number().positive().default(1)
 	})
-};
+} satisfies RouteConfigDefinition;
 
 export const load = async (data: any) => {
 	const { current: urlData } = serverPageInfo('/products/[id]', data);

@@ -1,4 +1,5 @@
 import { serverPageInfo } from '$lib/auto-skroutes';
+import type { RouteConfigDefinition } from '$lib/route-config-types';
 import { z } from 'zod';
 
 // Route configuration for the plugin (using current library format)
@@ -12,7 +13,7 @@ export const _routeConfig = {
 		page: z.coerce.number().positive().default(1),
 		sort: z.enum(['name', 'date', 'activity']).default('name')
 	})
-};
+} satisfies RouteConfigDefinition;
 
 export const load = (data: any) => {
 	const { current: urlData } = serverPageInfo('/users/[id]', data);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { pageInfo, urlGenerator } from '../../routeConfig.js';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
 	export let data;
 
 	const options = ['Horse', 'Donkey', 'Cat', 'Dog'];

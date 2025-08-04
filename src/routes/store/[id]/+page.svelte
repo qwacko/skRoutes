@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { pageInfoStore } from '../../routeConfig.js';
+	import { pageInfoStore } from '$lib/auto-skroutes';
 
 	const pageStore = pageInfoStore({
 		routeId: '/store/[id]/',
