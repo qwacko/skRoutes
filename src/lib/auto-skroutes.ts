@@ -1,7 +1,16 @@
 import { skRoutes } from './skRoutes-v2.js';
-import { routeConfig, type RouteKeys, type RouteTypeMap, pluginOptions } from './.generated/skroutes-config.js';
+import { 
+  routeConfig, 
+  routeValidators,
+  type RouteKeys, 
+  type RouteTypeMap, 
+  type RouteValidatorMap,
+  type RouteParams,
+  type RouteSearchParams,
+  pluginOptions 
+} from './.generated/skroutes-config.js';
 
-export type { RouteKeys, RouteTypeMap };
+export type { RouteKeys, RouteTypeMap, RouteValidatorMap, RouteParams, RouteSearchParams };
 
 export function createAutoSkRoutes(
   options?: {
@@ -78,4 +87,20 @@ export function pageInfoStore<Address extends RouteKeys>(config: {
   onUpdate: (newUrl: string) => unknown;
 }) {
   return defaultInstance.pageInfoStore(config);
+}
+
+// Route validation access function
+export function routeInfo<Address extends RouteKeys>(routeId: Address): {
+  paramsValidator: RouteValidatorMap[Address]['paramsValidator'];
+  searchParamsValidator: RouteValidatorMap[Address]['searchParamsValidator'];
+  paramsType: RouteTypeMap[Address]['params'];
+  searchParamsType: RouteTypeMap[Address]['searchParams'];
+} {
+  const validators = routeValidators[routeId];
+  return {
+    paramsValidator: validators.paramsValidator as any,
+    searchParamsValidator: validators.searchParamsValidator as any,
+    paramsType: {} as RouteTypeMap[Address]['params'],
+    searchParamsType: {} as RouteTypeMap[Address]['searchParams']
+  };
 }
