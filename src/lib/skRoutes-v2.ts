@@ -1,31 +1,40 @@
 import { customMerge, getUrlParams, objectToSearchParams } from './helpers.js';
 import type { Readable } from 'svelte/store';
 import { writable, get } from 'svelte/store';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
+
+// Helper function to validate using Standard Schema
+async function standardValidate<T extends StandardSchemaV1<any, any>>(
+	schema: T,
+	input: StandardSchemaV1.InferInput<T>
+): Promise<StandardSchemaV1.InferOutput<T>> {
+	let result = schema['~standard'].validate(input);
+	if (result instanceof Promise) result = await result;
+
+	if (result.issues) {
+		throw new Error(JSON.stringify(result.issues, null, 2));
+	}
+
+	return result.value;
+}
 
 // Define the types for the route configuration
-type ValidationFunction<T> = (input: T) => T;
-
 interface RouteDetails {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	paramsValidation?: ValidationFunction<any>;
+	paramsValidation?: StandardSchemaV1<any, any>;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	searchParamsValidation?: ValidationFunction<any>;
+	searchParamsValidation?: StandardSchemaV1<any, any>;
 }
 
 type ParamsType<Details extends RouteDetails> =
-	Details['paramsValidation'] extends ValidationFunction<infer T> ? T : undefined;
+	Details['paramsValidation'] extends StandardSchemaV1<infer T, any> ? T : undefined;
 type SearchParamsType<Details extends RouteDetails> =
-	Details['searchParamsValidation'] extends ValidationFunction<infer T> ? T : undefined;
+	Details['searchParamsValidation'] extends StandardSchemaV1<infer T, any> ? T : undefined;
 
-type ValidatedParamsType<Details extends RouteDetails> = Details['paramsValidation'] extends (
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	...args: any[]
-) => infer R
-	? R
-	: undefined;
+type ValidatedParamsType<Details extends RouteDetails> = 
+	Details['paramsValidation'] extends StandardSchemaV1<any, infer R> ? R : undefined;
 type ValidatedSearchParamsType<Details extends RouteDetails> =
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	Details['searchParamsValidation'] extends (...args: any[]) => infer R ? R : undefined;
+	Details['searchParamsValidation'] extends StandardSchemaV1<any, infer R> ? R : undefined;
 
 export interface RouteConfig {
 	[address: string]: RouteDetails;
@@ -41,12 +50,12 @@ type DeepPartial<T> = T extends object
 type Input<Config, Address extends keyof Config> = {
 	address: Address;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-} & (Config[Address] extends { paramsValidation: ValidationFunction<any> }
+} & (Config[Address] extends { paramsValidation: StandardSchemaV1<any, any> }
 	? { paramsValue: ParamsType<Config[Address]> }
 	: // eslint-disable-next-line @typescript-eslint/ban-types
 	  {}) &
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(Config[Address] extends { searchParamsValidation: ValidationFunction<any> }
+	(Config[Address] extends { searchParamsValidation: StandardSchemaV1<any, any> }
 		? { searchParamsValue: SearchParamsType<Config[Address]> }
 		: // eslint-disable-next-line @typescript-eslint/ban-types
 		  {});
@@ -77,7 +86,15 @@ export function skRoutes<Config extends RouteConfig>({
 				'paramsValue' in input &&
 				routeDetails.paramsValidation
 			) {
-				validatedParams = routeDetails.paramsValidation(input.paramsValue);
+				// Use synchronous validation for now - can be enhanced for async later
+				const result = routeDetails.paramsValidation['~standard'].validate(input.paramsValue);
+				if (result instanceof Promise) {
+					throw new Error('Async validation not supported in URL generator');
+				}
+				if ('issues' in result && result.issues) {
+					throw new Error('Params validation failed');
+				}
+				validatedParams = result.value;
 			}
 
 			let validatedSearchParams;
@@ -86,7 +103,14 @@ export function skRoutes<Config extends RouteConfig>({
 				'searchParamsValue' in input &&
 				routeDetails.searchParamsValidation
 			) {
-				validatedSearchParams = routeDetails.searchParamsValidation(input.searchParamsValue);
+				const result = routeDetails.searchParamsValidation['~standard'].validate(input.searchParamsValue);
+				if (result instanceof Promise) {
+					throw new Error('Async validation not supported in URL generator');
+				}
+				if ('issues' in result && result.issues) {
+					throw new Error('Search params validation failed');
+				}
+				validatedSearchParams = result.value;
 			}
 
 			// Construct the URL
@@ -145,6 +169,7 @@ export function skRoutes<Config extends RouteConfig>({
 			};
 		}
 	};
+
 	const pageInfo = <
 		Address extends keyof Config,
 		PageInfo extends { params: Record<string, string>; url: { search: string } }
@@ -192,7 +217,7 @@ export function skRoutes<Config extends RouteConfig>({
 	>({
 		routeId,
 		pageInfo,
-		updateDelay = 1000, // Default to 1 second if not provided
+		updateDelay = 1000,
 		onUpdate
 	}: {
 		routeId: Address;
@@ -232,7 +257,7 @@ export function skRoutes<Config extends RouteConfig>({
 			});
 
 			const unsubscribeFromStore = originalSubscribe((updatedData) => {
-				run(updatedData); // Call the original subscriber
+				run(updatedData);
 
 				if (timeoutId) {
 					clearTimeout(timeoutId);
