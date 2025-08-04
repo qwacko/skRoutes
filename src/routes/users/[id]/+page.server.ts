@@ -26,9 +26,7 @@ export const _routeConfig = {
 		console.warn('Invalid search params, using defaults:', error);
 		// Return default search params instead of failing
 		return {
-			searchParams: {
-        
-			}
+			searchParams: {}
 		};
 	},
 
