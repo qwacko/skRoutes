@@ -1,4 +1,5 @@
-import { serverPageInfo } from '$lib/auto-skroutes.js';
+import { serverPageInfo } from '$lib/auto-skroutes';
+import { skRoutes } from '$lib/skRoutes.js';
 import { z } from 'zod';
 
 // Define schemas locally in the page file using underscore prefix (SvelteKit allows this)
@@ -11,7 +12,7 @@ export const _searchParamsSchema = z.object({
 	date: z.date().optional()
 });
 
-export const load = (data) => {
+export const load = (data: any) => {
 	const { current: urlData } = serverPageInfo('/server/[id]', data);
 
 	// Test type checking - urlData.params should be typed as { id: string }

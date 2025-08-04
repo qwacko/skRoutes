@@ -18,14 +18,8 @@ interface SchemaDefinition {
   // Legacy format support
   paramsSchema?: string;
   searchParamsSchema?: string;
-  paramsSchemaCode?: string;
-  searchParamsSchemaCode?: string;
   // New unified format support
   routeConfig?: string;
-  routeConfigCode?: string;
-  // Error handlers
-  onParamsErrorCode?: string;
-  onSearchParamsErrorCode?: string;
 }
 
 export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
@@ -82,6 +76,17 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
     generateAutoSkRoutesWrapper();
   }
   
+  function generateRelativeImportPath(filePath: string): string {
+    // Convert absolute file path to relative import path from the generated config
+    const relativePath = filePath.replace(root, '').replace(/\\/g, '/');
+    
+    // Remove file extension and convert to import path
+    // From src/lib/.generated/ to src/routes/... we need to go up and then down
+    const importPath = relativePath.replace(/\.(ts|js)$/, '').replace(/^\/src\//, '../../../src/');
+    
+    return importPath;
+  }
+
   function generateAutoSkRoutesWrapper(): void {
     const wrapperPath = join(root, 'src/lib/auto-skroutes.ts');
     const relativePath = outputPath.replace('src/lib/', './').replace('.ts', '.js');
@@ -200,7 +205,7 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
   function generateConfigModule(): string {
     const schemas = scanForSchemas();
     
-    const schemaDefinitions: string[] = [];
+    const schemaImports: string[] = [];
     const configEntries: string[] = [];
     
     // Add base config entries first
@@ -208,49 +213,42 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
       configEntries.push(`'${routePath}': ${JSON.stringify(config, null, 2).replace(/"/g, '')}`);
     });
 
-    // Auto-detect needed imports
-    const needsZodImport = schemas.some(s => 
-      s.paramsSchemaCode?.includes('z.') || s.searchParamsSchemaCode?.includes('z.')
-    );
-    
-    const detectedImports: string[] = [];
-    if (needsZodImport) detectedImports.push("import { z } from 'zod';");
-    
     // Add custom imports
-    imports.forEach(imp => {
-      if (!detectedImports.includes(imp)) {
-        detectedImports.push(imp);
-      }
-    });
+    const detectedImports: string[] = [...imports];
 
     schemas.forEach((schema, index) => {
-      const schemaAlias = `autoSchema${index}`;
+      const schemaAlias = `routeConfig${index}`;
       
-      if (schema.routeConfigCode) {
-        // New unified format
-        schemaDefinitions.push(`const ${schemaAlias}_config = ${schema.routeConfigCode};`);
+      // Generate relative import path from the generated config to the page file
+      const relativePath = generateRelativeImportPath(schema.filePath);
+      
+      if (schema.routeConfig) {
+        // New unified format - import the entire route config
+        schemaImports.push(`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`);
         
         const entry = `'${schema.routePath}': {
-          paramsValidation: ${schemaAlias}_config.params,
-          searchParamsValidation: ${schemaAlias}_config.searchParams,
-          onParamsError: ${schemaAlias}_config.onParamsError,
-          onSearchParamsError: ${schemaAlias}_config.onSearchParamsError,
-          meta: ${schemaAlias}_config.meta,
+          paramsValidation: ${schemaAlias}.paramsValidation,
+          searchParamsValidation: ${schemaAlias}.searchParamsValidation,
         }`;
         
         configEntries.push(entry);
       } else {
-        // Legacy format
-        if (schema.paramsSchemaCode) {
-          schemaDefinitions.push(`const ${schemaAlias}_params = ${schema.paramsSchemaCode};`);
+        // Legacy format - import individual schemas
+        const imports: string[] = [];
+        if (schema.paramsSchema) {
+          imports.push(`${schema.paramsSchema} as ${schemaAlias}_params`);
         }
-        if (schema.searchParamsSchemaCode) {
-          schemaDefinitions.push(`const ${schemaAlias}_searchParams = ${schema.searchParamsSchemaCode};`);
+        if (schema.searchParamsSchema) {
+          imports.push(`${schema.searchParamsSchema} as ${schemaAlias}_searchParams`);
+        }
+        
+        if (imports.length > 0) {
+          schemaImports.push(`import { ${imports.join(', ')} } from '${relativePath}';`);
         }
 
         const entry = `'${schema.routePath}': {
-          ${schema.paramsSchemaCode ? `paramsValidation: ${schemaAlias}_params,` : ''}
-          ${schema.searchParamsSchemaCode ? `searchParamsValidation: ${schemaAlias}_searchParams,` : ''}
+          ${schema.paramsSchema ? `paramsValidation: ${schemaAlias}_params,` : ''}
+          ${schema.searchParamsSchema ? `searchParamsValidation: ${schemaAlias}_searchParams,` : ''}
         }`;
         
         configEntries.push(entry);
@@ -267,20 +265,20 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
     
     // Generate type mappings for each route
     const autoTypeMapping = schemas.map((schema, index) => {
-      const schemaAlias = `autoSchema${index}`;
+      const schemaAlias = `routeConfig${index}`;
       
-      if (schema.routeConfigCode) {
-        // New unified format
-        const paramsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_config.params> | Record<string, string>`;
-        const searchParamsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_config.searchParams> | Record<string, string | string[]>`;
+      if (schema.routeConfig) {
+        // New unified format - use proper type inference without fallback unions
+        const paramsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`;
+        const searchParamsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`;
         
         return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
       } else {
         // Legacy format
-        const paramsType = schema.paramsSchemaCode 
+        const paramsType = schema.paramsSchema 
           ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_params>`
           : 'Record<string, string>';
-        const searchParamsType = schema.searchParamsSchemaCode
+        const searchParamsType = schema.searchParamsSchema
           ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_searchParams>`
           : 'Record<string, string | string[]>';
         
@@ -290,38 +288,37 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
     
     // Add base config type mappings (simplified for now)
     const baseTypeMapping = Object.keys(baseConfig).map(routePath => {
-      return `  '${routePath}': { params: any; searchParams: any }`;
+      return `  '${routePath}': { params: Record<string, string>; searchParams: Record<string, string | string[]> }`;
     });
     
     const typeMapping = [...baseTypeMapping, ...autoTypeMapping].join(';\n');
     
     // Generate validator objects for each route
     const routeValidators = schemas.map((schema, index) => {
-      const schemaAlias = `autoSchema${index}`;
+      const schemaAlias = `routeConfig${index}`;
       
-      if (schema.routeConfigCode) {
+      if (schema.routeConfig) {
         // New unified format
         return `  '${schema.routePath}': {
-    paramsValidator: ${schemaAlias}_config.params,
-    searchParamsValidator: ${schemaAlias}_config.searchParams,
-    onParamsError: ${schemaAlias}_config.onParamsError,
-    onSearchParamsError: ${schemaAlias}_config.onSearchParamsError,
+    paramsValidator: ${schemaAlias}.paramsValidation,
+    searchParamsValidator: ${schemaAlias}.searchParamsValidation,
   }`;
       } else {
         // Legacy format
         return `  '${schema.routePath}': {
-    paramsValidator: ${schema.paramsSchemaCode ? `${schemaAlias}_params` : 'undefined'},
-    searchParamsValidator: ${schema.searchParamsSchemaCode ? `${schemaAlias}_searchParams` : 'undefined'},
+    paramsValidator: ${schema.paramsSchema ? `${schemaAlias}_params` : 'undefined'},
+    searchParamsValidator: ${schema.searchParamsSchema ? `${schemaAlias}_searchParams` : 'undefined'},
   }`;
       }
     });
 
     return `// Auto-generated by skroutes-plugin
+// WARNING: Do not import from this file in route files to avoid circular dependencies
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 ${detectedImports.join('\n')}
 
-// Inline schema definitions (extracted from page files)
-${schemaDefinitions.join('\n')}
+// Import schema definitions from page files
+${schemaImports.join('\n')}
 
 export const routeConfig = {
   ${configEntries.join(',\n  ')}
@@ -343,10 +340,14 @@ ${typeMapping}
 // Export validator type mapping
 export type RouteValidatorMap = {
 ${schemas.map((schema, index) => {
-  const schemaAlias = `autoSchema${index}`;
-  const paramsValidator = schema.paramsSchemaCode ? `typeof ${schemaAlias}_params` : 'undefined';
-  const searchParamsValidator = schema.searchParamsSchemaCode ? `typeof ${schemaAlias}_searchParams` : 'undefined';
-  return `  '${schema.routePath}': { paramsValidator: ${paramsValidator}; searchParamsValidator: ${searchParamsValidator} }`;
+  const schemaAlias = `routeConfig${index}`;
+  if (schema.routeConfig) {
+    return `  '${schema.routePath}': { paramsValidator: typeof ${schemaAlias}.paramsValidation; searchParamsValidator: typeof ${schemaAlias}.searchParamsValidation }`;
+  } else {
+    const paramsValidator = schema.paramsSchema ? `typeof ${schemaAlias}_params` : 'undefined';
+    const searchParamsValidator = schema.searchParamsSchema ? `typeof ${schemaAlias}_searchParams` : 'undefined';
+    return `  '${schema.routePath}': { paramsValidator: ${paramsValidator}; searchParamsValidator: ${searchParamsValidator} }`;
+  }
 }).join(';\n')}
 };
 
@@ -382,7 +383,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
           const routePath = extractRoutePathFromDirectory(relativePath);
           
           // Look for new unified route config first
-          const routeConfigPattern = /export\s+const\s+_routeConfig\s*=\s*([^;]+);/;
+          const routeConfigPattern = /export\s+const\s+_routeConfig\s*=/;
           const routeConfigMatch = content.match(routeConfigPattern);
           
           if (routeConfigMatch) {
@@ -390,13 +391,12 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
             schemas.push({
               routePath,
               filePath: fullPath,
-              routeConfig: '_routeConfig',
-              routeConfigCode: routeConfigMatch[1]?.trim() || '{ /* unified config detected */ }'
+              routeConfig: '_routeConfig'
             });
           } else {
             // Legacy format - look for separate schema exports
-            const paramsPattern = new RegExp(`export\\s+const\\s+${schemaExportName}\\s*=\\s*([^;]+);`);
-            const searchParamsPattern = new RegExp(`export\\s+const\\s+${searchParamsExportName}\\s*=\\s*([^;]+);`);
+            const paramsPattern = new RegExp(`export\\s+const\\s+${schemaExportName}\\s*=`);
+            const searchParamsPattern = new RegExp(`export\\s+const\\s+${searchParamsExportName}\\s*=`);
             
             const paramsMatch = content.match(paramsPattern);
             const searchParamsMatch = content.match(searchParamsPattern);
@@ -406,9 +406,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
                 routePath,
                 filePath: fullPath,
                 paramsSchema: paramsMatch ? schemaExportName : undefined,
-                searchParamsSchema: searchParamsMatch ? searchParamsExportName : undefined,
-                paramsSchemaCode: paramsMatch ? paramsMatch[1].trim() : undefined,
-                searchParamsSchemaCode: searchParamsMatch ? searchParamsMatch[1].trim() : undefined
+                searchParamsSchema: searchParamsMatch ? searchParamsExportName : undefined
               });
             }
           }

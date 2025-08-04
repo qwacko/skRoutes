@@ -35,8 +35,8 @@ export interface UrlGeneratorResult<Config extends RouteConfig, Address extends 
 	address: Address;
 	url: string;
 	error: boolean;
-	params?: ValidatedParamsType<Config, Address>;
-	searchParams?: ValidatedSearchParamsType<Config, Address>;
+	params: ValidatedParamsType<Config, Address>;
+	searchParams: ValidatedSearchParamsType<Config, Address>;
 }
 
 export function skRoutes<Config extends RouteConfig>({
@@ -135,8 +135,10 @@ export function skRoutes<Config extends RouteConfig>({
 			return {
 				address: input.address,
 				url: `${errorURL}?${objectToSearchParams(errorMessage)}`,
-				error: true
-			} as UrlGeneratorResult<Config, Address>;
+				error: true,
+				params: {} as ValidatedParamsType<Config, Address>,
+				searchParams: {} as ValidatedSearchParamsType<Config, Address>
+			};
 		}
 	};
 

@@ -19,6 +19,7 @@ pnpm add skroutes
 - 🎨 **Reactive stores** with debounced URL updates and type inference
 - 🚦 **TypeScript validation** of route addresses with compile-time checking
 - ⚡ **Generic Type System**: All functions are properly generic and infer types from your route configuration
+- 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed!
 
 ## Quick Start
 
@@ -64,8 +65,12 @@ const userUrl = urlGenerator({
 
 console.log(userUrl.url); // '/users/user123?tab=profile&page=1'
 console.log(userUrl.error); // false
-console.log(userUrl.params); // ✅ Typed as { id: string }
-console.log(userUrl.searchParams); // ✅ Typed as { tab: 'profile' | 'settings' | undefined, page: number | undefined }
+console.log(userUrl.params); // ✅ Typed as { id: string } (never undefined!)
+console.log(userUrl.searchParams); // ✅ Typed as { tab: 'profile' | 'settings' | undefined, page: number | undefined } (never undefined!)
+
+// No need for optional chaining - params and searchParams are guaranteed to exist
+const userId = userUrl.params.id; // ✅ Direct access, no userUrl.params?.id needed
+const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searchParams?.tab needed
 
 // ❌ TypeScript will catch these errors at compile time:
 // urlGenerator({ address: '/nonexistent' }); // Error: route doesn't exist
