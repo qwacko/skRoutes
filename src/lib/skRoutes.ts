@@ -1,57 +1,44 @@
 import { customMerge, getUrlParams, objectToSearchParams } from './helpers.js';
 import type { Readable } from 'svelte/store';
 import { writable, get } from 'svelte/store';
-
-// Define the types for the route configuration
-type ValidationFunction<T> = (input: T) => T;
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 interface RouteDetails {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	paramsValidation?: ValidationFunction<any>;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	searchParamsValidation?: ValidationFunction<any>;
+	paramsValidation?: StandardSchemaV1<unknown, unknown>;
+	searchParamsValidation?: StandardSchemaV1<unknown, unknown>;
 }
-
-type ParamsType<Details extends RouteDetails> =
-	Details['paramsValidation'] extends ValidationFunction<infer T> ? T : undefined;
-type SearchParamsType<Details extends RouteDetails> =
-	Details['searchParamsValidation'] extends ValidationFunction<infer T> ? T : undefined;
-
-type ValidatedParamsType<Details extends RouteDetails> = Details['paramsValidation'] extends (
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	...args: any[]
-) => infer R
-	? R
-	: undefined;
-type ValidatedSearchParamsType<Details extends RouteDetails> =
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	Details['searchParamsValidation'] extends (...args: any[]) => infer R ? R : undefined;
 
 export interface RouteConfig {
 	[address: string]: RouteDetails;
 }
 
-type DeepPartial<T> = T extends object
-	? {
-			[P in keyof T]?: DeepPartial<T[P]>;
-	  }
-	: T;
+// Type helpers to extract param and search param types from config
+type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
+	Config[Address]['paramsValidation'] extends StandardSchemaV1<infer T, unknown> ? T : Record<string, string>;
 
-// Define the generateURL function
-type Input<Config, Address extends keyof Config> = {
+type SearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
+	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<infer T, unknown> ? T : Record<string, unknown>;
+
+type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> = 
+	Config[Address]['paramsValidation'] extends StandardSchemaV1<unknown, infer R> ? R : Record<string, string>;
+
+type ValidatedSearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
+	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<unknown, infer R> ? R : Record<string, unknown>;
+
+export interface UrlGeneratorInput<Config extends RouteConfig, Address extends keyof Config> {
 	address: Address;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-} & (Config[Address] extends { paramsValidation: ValidationFunction<any> }
-	? { paramsValue: ParamsType<Config[Address]> }
-	: // eslint-disable-next-line @typescript-eslint/ban-types
-	  {}) &
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(Config[Address] extends { searchParamsValidation: ValidationFunction<any> }
-		? { searchParamsValue: SearchParamsType<Config[Address]> }
-		: // eslint-disable-next-line @typescript-eslint/ban-types
-		  {});
+	paramsValue?: ParamsType<Config, Address>;
+	searchParamsValue?: SearchParamsType<Config, Address>;
+}
 
-// Higher-order function
+export interface UrlGeneratorResult<Config extends RouteConfig, Address extends keyof Config> {
+	address: Address;
+	url: string;
+	error: boolean;
+	params?: ValidatedParamsType<Config, Address>;
+	searchParams?: ValidatedSearchParamsType<Config, Address>;
+}
+
 export function skRoutes<Config extends RouteConfig>({
 	errorURL,
 	config
@@ -60,50 +47,56 @@ export function skRoutes<Config extends RouteConfig>({
 	config: Config;
 }) {
 	const urlGenerator = <Address extends keyof Config>(
-		input: Input<Config, Address>
-	): {
-		address: Address;
-		url: string;
-		error: boolean;
-		params?: ValidatedParamsType<Config[Address]>;
-		searchParams?: ValidatedSearchParamsType<Config[Address]>;
-	} => {
+		input: UrlGeneratorInput<Config, Address>
+	): UrlGeneratorResult<Config, Address> => {
 		try {
 			const routeDetails = config[input.address];
-
-			let validatedParams;
-			if (
-				'paramsValidation' in routeDetails &&
-				'paramsValue' in input &&
-				routeDetails.paramsValidation
-			) {
-				validatedParams = routeDetails.paramsValidation(input.paramsValue);
+			if (!routeDetails) {
+				throw new Error(`Route not found: ${String(input.address)}`);
 			}
 
-			let validatedSearchParams;
-			if (
-				'searchParamsValidation' in routeDetails &&
-				'searchParamsValue' in input &&
-				routeDetails.searchParamsValidation
-			) {
-				validatedSearchParams = routeDetails.searchParamsValidation(input.searchParamsValue);
+			let validatedParams: ValidatedParamsType<Config, Address> = (input.paramsValue || {}) as ValidatedParamsType<Config, Address>;
+			if (routeDetails.paramsValidation && input.paramsValue) {
+				const result = routeDetails.paramsValidation['~standard'].validate(input.paramsValue);
+				if (result instanceof Promise) {
+					throw new Error('Async validation not supported in URL generator');
+				}
+				if ('issues' in result && result.issues) {
+					throw new Error('Params validation failed');
+				}
+				validatedParams = result.value as ValidatedParamsType<Config, Address>;
+			}
+
+			let validatedSearchParams: ValidatedSearchParamsType<Config, Address> = (input.searchParamsValue || {}) as ValidatedSearchParamsType<Config, Address>;
+			if (routeDetails.searchParamsValidation && input.searchParamsValue) {
+				const result = routeDetails.searchParamsValidation['~standard'].validate(input.searchParamsValue);
+				if (result instanceof Promise) {
+					throw new Error('Async validation not supported in URL generator');
+				}
+				if ('issues' in result && result.issues) {
+					throw new Error('Search params validation failed');
+				}
+				validatedSearchParams = result.value as ValidatedSearchParamsType<Config, Address>;
 			}
 
 			// Construct the URL
-			let url = input.address as string;
+			let url = String(input.address);
 
 			// Replace "/[x]" and "/[...x]" and "/[x=y]" with the corresponding value from validatedParams
-			if (validatedParams) {
-				for (const key in validatedParams) {
-					// Handle "/[x]", "/[...x]", and "/[x=y]"
-					const regexes = [
-						new RegExp(`/\\[${key}\\]`, 'g'),
-						new RegExp(`/\\[\\.\\.\\.${key}\\]`, 'g'),
-						new RegExp(`/\\[${key}=[^\\]]+\\]`, 'g')
-					];
+			if (validatedParams && typeof validatedParams === 'object') {
+				const paramsRecord = validatedParams as Record<string, unknown>;
+				for (const key in paramsRecord) {
+					const value = paramsRecord[key];
+					if (value !== undefined) {
+						const regexes = [
+							new RegExp(`/\\[${key}\\]`, 'g'),
+							new RegExp(`/\\[\\.\\.\\.${key}\\]`, 'g'),
+							new RegExp(`/\\[${key}=[^\\]]+\\]`, 'g')
+						];
 
-					for (const regex of regexes) {
-						url = url.replace(regex, `/${validatedParams[key]}`);
+						for (const regex of regexes) {
+							url = url.replace(regex, `/${String(value)}`);
+						}
 					}
 				}
 			}
@@ -113,8 +106,9 @@ export function skRoutes<Config extends RouteConfig>({
 			let match;
 			while ((match = optionalPortionRegex.exec(url)) !== null) {
 				const key = match[1];
-				if (validatedParams && key in validatedParams) {
-					url = url.replace(`/[[${key}]]`, `/${validatedParams[key]}`);
+				const paramsRecord = validatedParams as Record<string, unknown>;
+				if (validatedParams && key in paramsRecord && paramsRecord[key] !== undefined) {
+					url = url.replace(`/[[${key}]]`, `/${String(paramsRecord[key])}`);
 				} else {
 					url = url.replace(`/[[${key}]]`, '');
 				}
@@ -124,8 +118,8 @@ export function skRoutes<Config extends RouteConfig>({
 			url = url.replace(/\/\([^)]+\)/g, '');
 
 			// Append search params to the URL
-			if (validatedSearchParams) {
-				const searchParams = objectToSearchParams(validatedSearchParams);
+			if (validatedSearchParams && Object.keys(validatedSearchParams as Record<string, unknown>).length > 0) {
+				const searchParams = objectToSearchParams(validatedSearchParams as Record<string, unknown>);
 				url += `?${searchParams.toString()}`;
 			}
 
@@ -142,71 +136,60 @@ export function skRoutes<Config extends RouteConfig>({
 				address: input.address,
 				url: `${errorURL}?${objectToSearchParams(errorMessage)}`,
 				error: true
-			};
+			} as UrlGeneratorResult<Config, Address>;
 		}
 	};
-	const pageInfo = <
-		Address extends keyof Config,
-		PageInfo extends { params: Record<string, string>; url: { search: string } }
-	>(
+
+	const pageInfo = <Address extends keyof Config>(
 		routeId: Address,
-		pageInfo: PageInfo
+		pageInfo: { params: Record<string, string>; url: { search: string } }
 	) => {
-		//@ts-expect-error This has uncertainty about what should be available
 		const current = urlGenerator({
 			address: routeId,
-			paramsValue: pageInfo.params,
-			searchParamsValue: getUrlParams(pageInfo.url.search)
+			paramsValue: pageInfo.params as ParamsType<Config, Address>,
+			searchParamsValue: getUrlParams(pageInfo.url.search) as SearchParamsType<Config, Address>
 		});
 
 		const updateParams = ({
-			//@ts-expect-error This has uncertainty about what should be available
 			params = {},
-			//@ts-expect-error This has uncertainty about what should be available
 			searchParams = {}
 		}: {
-			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
-			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
+			params?: Partial<ValidatedParamsType<Config, Address>>;
+			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
 		}) => {
 			const mergedParams = customMerge(pageInfo.params, params as Record<string, string>);
-
 			const mergedSearch = customMerge(
 				getUrlParams(pageInfo.url.search),
-				searchParams as Record<string, string>
+				searchParams as Record<string, unknown>
 			);
 
-			//@ts-expect-error This has uncertainty about what should be available
 			return urlGenerator({
 				address: routeId,
-				paramsValue: mergedParams,
-				searchParamsValue: mergedSearch
+				paramsValue: mergedParams as ParamsType<Config, Address>,
+				searchParamsValue: mergedSearch as SearchParamsType<Config, Address>
 			});
 		};
 
 		return { current, updateParams };
 	};
 
-	const pageInfoStore = <
-		Address extends keyof Config,
-		PageInfo extends { params: Record<string, string>; url: { search: string } }
-	>({
+	const pageInfoStore = <Address extends keyof Config>({
 		routeId,
 		pageInfo,
-		updateDelay = 1000, // Default to 1 second if not provided
+		updateDelay = 1000,
 		onUpdate
 	}: {
 		routeId: Address;
-		pageInfo: Readable<PageInfo>;
+		pageInfo: Readable<{ params: Record<string, string>; url: { search: string } }>;
 		updateDelay?: number;
 		onUpdate: (newUrl: string) => unknown;
 	}) => {
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 		const initialData = get(pageInfo);
-		//@ts-expect-error This has uncertainty about what should be available
 		const initialURLData = urlGenerator({
 			address: routeId,
-			paramsValue: initialData.params,
-			searchParamsValue: getUrlParams(initialData.url.search)
+			paramsValue: initialData.params as ParamsType<Config, Address>,
+			searchParamsValue: getUrlParams(initialData.url.search) as SearchParamsType<Config, Address>
 		});
 
 		const store = writable({
@@ -218,11 +201,10 @@ export function skRoutes<Config extends RouteConfig>({
 
 		store.subscribe = (run, invalidate) => {
 			const unsubscribeFromPageInfo = pageInfo.subscribe((data) => {
-				//@ts-expect-error This has uncertainty about what should be available
 				const current = urlGenerator({
 					address: routeId,
-					paramsValue: data.params,
-					searchParamsValue: getUrlParams(data.url.search)
+					paramsValue: data.params as ParamsType<Config, Address>,
+					searchParamsValue: getUrlParams(data.url.search) as SearchParamsType<Config, Address>
 				});
 
 				store.set({
@@ -232,18 +214,17 @@ export function skRoutes<Config extends RouteConfig>({
 			});
 
 			const unsubscribeFromStore = originalSubscribe((updatedData) => {
-				run(updatedData); // Call the original subscriber
+				run(updatedData);
 
 				if (timeoutId) {
 					clearTimeout(timeoutId);
 				}
 
 				timeoutId = setTimeout(() => {
-					//@ts-expect-error This has uncertainty about what should be available
 					const generatedUrl = urlGenerator({
 						address: routeId,
-						paramsValue: updatedData.params,
-						searchParamsValue: updatedData.searchParams
+						paramsValue: updatedData.params as ParamsType<Config, Address>,
+						searchParamsValue: updatedData.searchParams as SearchParamsType<Config, Address>
 					});
 
 					onUpdate(generatedUrl.url);
@@ -259,44 +240,37 @@ export function skRoutes<Config extends RouteConfig>({
 		return store;
 	};
 
-	const serverPageInfo = <
-		Address extends keyof Config,
-		PageInfo extends {
+	const serverPageInfo = <Address extends keyof Config>(
+		routeId: Address,
+		data: {
 			params: Record<string, string>;
 			url: { search: string };
-			route: { id: Address };
+			route: { id: string };
 		}
-	>(
-		routeId: Address,
-		data: PageInfo
 	) => {
-		//@ts-expect-error This has uncertainty about what should be available
 		const current = urlGenerator({
 			address: routeId,
-			paramsValue: data.params,
-			searchParamsValue: getUrlParams(data.url.search)
+			paramsValue: data.params as ParamsType<Config, Address>,
+			searchParamsValue: getUrlParams(data.url.search) as SearchParamsType<Config, Address>
 		});
 
 		const updateParams = ({
-			//@ts-expect-error This has uncertainty about what should be available
 			params = {},
-			//@ts-expect-error This has uncertainty about what should be available
 			searchParams = {}
 		}: {
-			params?: DeepPartial<ValidatedParamsType<Config[Address]>>;
-			searchParams?: DeepPartial<ValidatedSearchParamsType<Config[Address]>>;
+			params?: Partial<ValidatedParamsType<Config, Address>>;
+			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
 		}) => {
 			const mergedParams = customMerge(data.params, params as Record<string, string>);
 			const mergedSearch = customMerge(
 				getUrlParams(data.url.search),
-				searchParams as Record<string, string>
+				searchParams as Record<string, unknown>
 			);
 
-			//@ts-expect-error This has uncertainty about what should be available
 			return urlGenerator({
 				address: routeId,
-				paramsValue: mergedParams,
-				searchParamsValue: mergedSearch
+				paramsValue: mergedParams as ParamsType<Config, Address>,
+				searchParamsValue: mergedSearch as SearchParamsType<Config, Address>
 			});
 		};
 

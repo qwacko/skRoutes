@@ -1,6 +1,6 @@
 import { serverPageInfo } from '$lib/auto-skroutes.js';
 import { z } from 'zod';
-import type { RouteConfig } from '$lib/route-config-types.js';
+import type { RouteConfig, RouteConfigDefinition } from '$lib/route-config-types.js';
 
 // Define schemas with full type inference
 const paramsSchema = z.object({
@@ -54,10 +54,10 @@ export const _routeConfig = {
     description: 'View detailed product information',
     tags: ['ecommerce', 'product']
   }
-} satisfies RouteConfig<typeof paramsSchema, typeof searchParamsSchema>;
+} satisfies RouteConfigDefinition;
 
 export const load = async (data) => {
-  const { current: urlData } = serverPageInfo('/products/[id]', data);
+  const { current: urlData } = serverPageInfo('/server/[id]', data);
   
   // Now fully typed with proper inference from the schemas above
   const productId = urlData.params.id;     // string (with regex validation)

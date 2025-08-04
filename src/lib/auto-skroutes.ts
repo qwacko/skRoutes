@@ -1,4 +1,4 @@
-import { skRoutes } from './skRoutes-v2.js';
+import { skRoutes } from './skRoutes.js';
 import { 
   routeConfig, 
   routeValidators,
@@ -10,97 +10,102 @@ import {
   pluginOptions 
 } from './.generated/skroutes-config.js';
 
-export type { RouteKeys, RouteTypeMap, RouteValidatorMap, RouteParams, RouteSearchParams };
+export const { pageInfo, pageInfoStore, serverPageInfo, urlGenerator} = skRoutes({
+  errorURL: "/",
+  config: routeConfig,
+})
 
-export function createAutoSkRoutes(
-  options?: {
-    config?: Record<string, any>;
-    errorURL?: string;
-  }
-) {
-  const finalConfig = {
-    ...routeConfig,
-    ...(options?.config || {})
-  };
+// export type { RouteKeys, RouteTypeMap, RouteValidatorMap, RouteParams, RouteSearchParams };
+
+// export function createAutoSkRoutes(
+//   options?: {
+//     config?: Record<string, any>;
+//     errorURL?: string;
+//   }
+// ) {
+//   const finalConfig = {
+//     ...routeConfig,
+//     ...(options?.config || {})
+//   };
   
-  return skRoutes({
-    config: finalConfig,
-    errorURL: options?.errorURL || pluginOptions.errorURL || '/error'
-  });
-}
+//   return skRoutes({
+//     config: finalConfig,
+//     errorURL: options?.errorURL || pluginOptions.errorURL || '/error'
+//   });
+// }
 
-// Create typed versions of the functions with route key validation and type inference
-const defaultInstance = createAutoSkRoutes();
+// // Create typed versions of the functions with route key validation and type inference
+// const defaultInstance = createAutoSkRoutes();
 
-// Wrap the functions to provide type-safe route ID checking and schema type inference
-export const urlGenerator = defaultInstance.urlGenerator;
+// // Wrap the functions to provide type-safe route ID checking and schema type inference
+// export const urlGenerator = defaultInstance.urlGenerator;
 
-export function pageInfo<Address extends RouteKeys>(
-  routeId: Address,
-  pageInfo: { params: Record<string, string>; url: { search: string } }
-): {
-  current: {
-    address: Address;
-    url: string;
-    error: boolean;
-    params: RouteTypeMap[Address]['params'];
-    searchParams: RouteTypeMap[Address]['searchParams'];
-  };
-  updateParams: (opts: {
-    params?: Partial<RouteTypeMap[Address]['params']>;
-    searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
-  }) => any;
-} {
-  return defaultInstance.pageInfo(routeId, pageInfo) as any;
-}
+// export function pageInfo<Address extends RouteKeys>(
+//   routeId: Address,
+//   pageInfo: { params: Record<string, string>; url: { search: string } }
+// ): {
+//   current: {
+//     address: Address;
+//     url: string;
+//     error: boolean;
+//     params: RouteTypeMap[Address]['params'];
+//     searchParams: RouteTypeMap[Address]['searchParams'];
+//   };
+//   updateParams: (opts: {
+//     params?: Partial<RouteTypeMap[Address]['params']>;
+//     searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
+//   }) => any;
+// } {
+//   return defaultInstance.pageInfo(routeId, pageInfo) as any;
+// }
 
-export function serverPageInfo<Address extends RouteKeys>(
-  routeId: Address,
-  data: {
-    params: Record<string, string>;
-    url: { search: string };
-    route: { id: Address };
-  }
-): {
-  current: {
-    address: Address;
-    url: string;
-    error: boolean;
-    params: RouteTypeMap[Address]['params'];
-    searchParams: RouteTypeMap[Address]['searchParams'];
-  };
-  updateParams: (opts: {
-    params?: Partial<RouteTypeMap[Address]['params']>;
-    searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
-  }) => any;
-} {
-  return defaultInstance.serverPageInfo(routeId, data) as any;
-}
+// export function serverPageInfo<Address extends RouteKeys>(
+//   routeId: Address,
+//   data: {
+//     params: Record<string, string>;
+//     url: { search: string };
+//     route: { id: Address };
+//   }
+// ): {
+//   current: {
+//     address: Address;
+//     url: string;
+//     error: boolean;
+//     params: RouteTypeMap[Address]['params'];
+//     searchParams: RouteTypeMap[Address]['searchParams'];
+//   };
+//   updateParams: (opts: {
+//     params?: Partial<RouteTypeMap[Address]['params']>;
+//     searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
+//   }) => any;
+// } {
+//   return defaultInstance.serverPageInfo(routeId, data) as any;
+// }
 
-export function pageInfoStore<Address extends RouteKeys>(config: {
-  routeId: Address;
-  pageInfo: import('svelte/store').Readable<{
-    params: Record<string, string>;
-    url: { search: string };
-  }>;
-  updateDelay?: number;
-  onUpdate: (newUrl: string) => unknown;
-}) {
-  return defaultInstance.pageInfoStore(config);
-}
+// export function pageInfoStore<Address extends RouteKeys>(config: {
+//   routeId: Address;
+//   pageInfo: import('svelte/store').Readable<{
+//     params: Record<string, string>;
+//     url: { search: string };
+//   }>;
+//   updateDelay?: number;
+//   onUpdate: (newUrl: string) => unknown;
+// }) {
+//   return defaultInstance.pageInfoStore(config);
+// }
 
-// Route validation access function
-export function routeInfo<Address extends RouteKeys>(routeId: Address): {
-  paramsValidator: RouteValidatorMap[Address]['paramsValidator'];
-  searchParamsValidator: RouteValidatorMap[Address]['searchParamsValidator'];
-  paramsType: RouteTypeMap[Address]['params'];
-  searchParamsType: RouteTypeMap[Address]['searchParams'];
-} {
-  const validators = routeValidators[routeId];
-  return {
-    paramsValidator: validators.paramsValidator as any,
-    searchParamsValidator: validators.searchParamsValidator as any,
-    paramsType: {} as RouteTypeMap[Address]['params'],
-    searchParamsType: {} as RouteTypeMap[Address]['searchParams']
-  };
-}
+// // Route validation access function
+// export function routeInfo<Address extends RouteKeys>(routeId: Address): {
+//   paramsValidator: RouteValidatorMap[Address]['paramsValidator'];
+//   searchParamsValidator: RouteValidatorMap[Address]['searchParamsValidator'];
+//   paramsType: RouteTypeMap[Address]['params'];
+//   searchParamsType: RouteTypeMap[Address]['searchParams'];
+// } {
+//   const validators = routeValidators[routeId];
+//   return {
+//     paramsValidator: validators.paramsValidator as any,
+//     searchParamsValidator: validators.searchParamsValidator as any,
+//     paramsType: {} as RouteTypeMap[Address]['params'],
+//     searchParamsType: {} as RouteTypeMap[Address]['searchParams']
+//   };
+// }

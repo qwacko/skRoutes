@@ -1,6 +1,6 @@
 # skRoutes
 
-skRoutes is a package with the intent of making the URL useable as a typesafe state store for SvelteKit (a first class citizen). This intent means that this package makes SvelteKit routes, route parameters, and URL search parameters easy to manage with validation. Simplifies navigation by generating URLs for a chosen endpoint with necessary params and searchParams. Using this library will dramatically simplify URL changing, as changes in the URL will be reflected elsewhere as type errors.
+A TypeScript-first SvelteKit library for type-safe URL generation and route parameter validation using Standard Schema.
 
 ## Installation
 
@@ -12,379 +12,297 @@ pnpm add skroutes
 
 ## Features
 
-- 🎯 **Local Schema Definition**: Define validation schemas directly in your page and server files
-- 🔧 **Flexible Vite Plugin**: Automatic route configuration with extensive customization options
+- 🔒 **Full Type Safety**: Route parameters and search parameters are fully typed based on your schema configuration
 - 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library
-- 🔒 **Full Type Safety**: Route IDs and schema types are validated at compile time - no more optional types!
-- 🚀 **Multiple Configuration Modes**: Plugin-only, manual-only, or hybrid approaches
-- 🔄 **Hot Reload**: Automatic regeneration during development when schemas change
-- 🌐 **Server File Support**: Works with both `+page.*` and `+server.*` files
-- 📝 **Typesafe URL generation** based on route configuration, params, and search params
-- 🛠️ **Easy URL manipulation** with different parameters or searchParameters from current URL
-- ✅ **Validation** of route parameters and search parameters
-- 🎨 **Fully typed** params and search params for use throughout the application
-- 🌳 **Nested search parameters** support
-- 🚦 **TypeScript validation** of URL addresses (changing URLs will cause TypeScript errors)
-- 📦 **Store integration** with automatic navigation and debouncing
+- 📝 **Type-safe URL generation** with automatic validation and proper return types
+- 🛠️ **Easy URL manipulation** with strongly typed parameter updates
+- 🎨 **Reactive stores** with debounced URL updates and type inference
+- 🚦 **TypeScript validation** of route addresses with compile-time checking
+- ⚡ **Generic Type System**: All functions are properly generic and infer types from your route configuration
 
-## Quick Start (New Vite Plugin Approach)
+## Quick Start
 
-### 1. Setup the Vite Plugin
+### 1. Define Your Route Configuration
 
-Add the skRoutes plugin to your `vite.config.js`:
+```typescript
+// src/lib/routes.ts
+import { skRoutes } from 'skroutes';
+import { z } from 'zod';
+
+export const { urlGenerator, pageInfo, serverPageInfo, pageInfoStore } = skRoutes({
+  config: {
+    '/users/[id]': {
+      paramsValidation: z.object({ 
+        id: z.string().uuid() 
+      }),
+      searchParamsValidation: z.object({ 
+        tab: z.enum(['profile', 'settings']).optional(),
+        page: z.coerce.number().positive().optional()
+      })
+    },
+    '/products/[slug]': {
+      paramsValidation: z.object({
+        slug: z.string().min(1)
+      })
+    }
+  },
+  errorURL: '/error'
+});
+```
+
+### 2. Generate Type-Safe URLs
+
+```typescript
+import { urlGenerator } from '$lib/routes';
+
+// Generate a URL with validation - all parameters are strongly typed!
+const userUrl = urlGenerator({
+  address: '/users/[id]',           // ✅ TypeScript validates this route exists
+  paramsValue: { id: 'user123' },   // ✅ TypeScript knows id: string is required
+  searchParamsValue: { tab: 'profile', page: 1 } // ✅ TypeScript validates tab and page types
+});
+
+console.log(userUrl.url); // '/users/user123?tab=profile&page=1'
+console.log(userUrl.error); // false
+console.log(userUrl.params); // ✅ Typed as { id: string }
+console.log(userUrl.searchParams); // ✅ Typed as { tab: 'profile' | 'settings' | undefined, page: number | undefined }
+
+// ❌ TypeScript will catch these errors at compile time:
+// urlGenerator({ address: '/nonexistent' }); // Error: route doesn't exist
+// urlGenerator({ address: '/users/[id]', paramsValue: { id: 123 } }); // Error: id must be string
+// urlGenerator({ address: '/users/[id]', searchParamsValue: { tab: 'invalid' } }); // Error: invalid tab value
+```
+
+### 3. Use in SvelteKit Pages
+
+```typescript
+// src/routes/users/[id]/+page.server.ts
+import { serverPageInfo } from '$lib/routes';
+
+export const load = (data) => {
+  const { current } = serverPageInfo('/users/[id]', data);
+  
+  // current.params is typed as { id: string } with UUID validation
+  // current.searchParams is typed with your schema
+  
+  return {
+    user: getUserById(current.params.id),
+    activeTab: current.searchParams?.tab || 'profile'
+  };
+};
+```
+
+```svelte
+<!-- src/routes/users/[id]/+page.svelte -->
+<script lang="ts">
+  import { pageInfo } from '$lib/routes';
+  import { page } from '$app/stores';
+
+  $: urlInfo = pageInfo('/users/[id]', $page);
+  const tabs = ['profile', 'settings'] as const;
+</script>
+
+<div class="page">
+  <h1>User: {urlInfo.current.params.id}</h1>
+  <p>Current Tab: {urlInfo.current.searchParams?.tab || 'profile'}</p>
+  
+  <div class="tabs">
+    {#each tabs as tab}
+      <a 
+        href={urlInfo.updateParams({ searchParams: { tab } }).url}
+        class:active={urlInfo.current.searchParams?.tab === tab}
+      >
+        {tab}
+      </a>
+    {/each}
+  </div>
+</div>
+```
+
+### 4. Reactive Store with Auto-Navigation
+
+```svelte
+<script lang="ts">
+  import { pageInfoStore } from '$lib/routes';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+
+  const urlStore = pageInfoStore({
+    routeId: '/users/[id]',
+    pageInfo: page,
+    updateDelay: 500, // Debounce URL updates
+    onUpdate: (newUrl) => goto(newUrl) // Auto-navigate on changes
+  });
+
+  // Reactive updates to URL parameters
+  function updateTab(tab: string) {
+    $urlStore.searchParams = { ...$urlStore.searchParams, tab };
+  }
+</script>
+
+<button on:click={() => updateTab('profile')}>Profile</button>
+<button on:click={() => updateTab('settings')}>Settings</button>
+```
+
+## Advanced Usage
+
+### Auto-Generated Configuration with Vite Plugin
+
+For larger projects, use the Vite plugin to automatically generate route configurations:
 
 ```javascript
+// vite.config.js
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { skRoutesPlugin } from 'skroutes/plugin';
 
 export default defineConfig({
-	plugins: [
-		sveltekit(),
-		skRoutesPlugin({
-			// Optional configuration
-			imports: ["import { z } from 'zod';"],
-			errorURL: '/error',
-			includeServerFiles: true // Enable +server.ts support
-		})
-	]
+  plugins: [
+    sveltekit(),
+    skRoutesPlugin({
+      imports: ["import { z } from 'zod';"],
+      errorURL: '/error'
+    })
+  ]
 });
 ```
 
-### 2. Define Schemas in Your Page and Server Files
-
-Define schemas locally in your `+page.server.ts`, `+page.ts`, or `+server.ts` files using underscore-prefixed exports:
+Then define schemas directly in your page files:
 
 ```typescript
 // src/routes/users/[id]/+page.server.ts
 import { serverPageInfo } from 'skroutes';
 import { z } from 'zod';
 
-// Define schemas locally in the page file (SvelteKit compliant)
-export const _paramsSchema = z.object({ 
-  id: z.string().uuid() 
-});
-
+export const _paramsSchema = z.object({ id: z.string().uuid() });
 export const _searchParamsSchema = z.object({ 
-  tab: z.enum(['profile', 'settings']).optional(),
-  page: z.coerce.number().positive().optional()
+  tab: z.enum(['profile', 'settings']).optional() 
 });
 
 export const load = (data) => {
-	// The plugin automatically registers these schemas and provides full type safety
-	const { current: urlData } = serverPageInfo('/users/[id]', data);
-
-	// urlData.params is now typed as { id: string } with UUID validation
-	// urlData.searchParams is typed as { tab: 'profile' | 'settings' | undefined, page: number | undefined }
-
-	return {
-		user: getUserById(urlData.params.id),
-		activeTab: urlData.searchParams?.tab || 'profile',
-		currentPage: urlData.searchParams?.page || 1
-	};
+  const { current } = serverPageInfo('/users/[id]', data);
+  // Fully typed with automatic validation
+  return { user: getUserById(current.params.id) };
 };
 ```
 
-### 3. Use in Svelte Components
+### Error Handling
 
-```svelte
-<!-- src/routes/users/[id]/+page.svelte -->
-<script lang="ts">
-	import { pageInfo } from 'skroutes';
-	import { page } from '$app/stores';
-
-	// Fully typed with automatic route validation
-	$: urlInfo = pageInfo('/users/[id]', $page);
-	const tabs = ['profile', 'settings'] as const;
-</script>
-
-<div class="page">
-	<h1>User: {urlInfo.current.params?.id}</h1>
-	<p>Current Tab: {urlInfo.current.searchParams?.tab || 'profile'}</p>
-	
-	<div class="tabs">
-		{#each tabs as tab}
-			<a 
-				href={urlInfo.updateParams({ searchParams: { tab } }).url}
-				class:active={urlInfo.current.searchParams?.tab === tab}
-			>
-				{tab}
-			</a>
-		{/each}
-	</div>
-</div>
-```
-
-### 4. Schema Updates
-
-When you change schemas in your page files, the types are automatically updated:
-
-```bash
-# Manual regeneration (if needed)
-pnpm regenerate
-
-# Or just restart dev server
-pnpm dev
-```
-
-## Legacy Usage (Central Configuration)
-
-You can still use the traditional central configuration approach:
+When validation fails, skRoutes redirects to your configured `errorURL`:
 
 ```typescript
-import { skRoutes } from 'skroutes';
-import { z } from 'zod';
-
-export const { pageInfo, urlGenerator, serverPageInfo } = skRoutes({
-	config: {
-		'/[id]': {
-			paramsValidation: z.object({ id: z.string() })
-		},
-		'/server/[id]': {
-			paramsValidation: z.object({ id: z.string() })
-		}
-	},
-	errorURL: '/error'
-});
-```
-
-## Plugin Features & Benefits
-
-### ✅ **Co-location**
-Schemas are defined right next to the page logic that uses them, improving maintainability and reducing context switching.
-
-### ✅ **Standard Schema Support**
-Works with any [Standard Schema](https://github.com/standard-schema/standard-schema) compliant library:
-- **Zod**: `z.object({ id: z.string() })`
-- **Valibot**: `v.object({ id: v.string() })`
-- **ArkType**: `type({ id: 'string' })`
-
-### ✅ **Enhanced Type Safety**
-- Route IDs are validated at compile time
-- Schema types flow through automatically - **no more optional types**!
-- TypeScript errors when using wrong route paths
-- Proper type inference from schema definitions
-
-### ✅ **Flexible Configuration**
-- Plugin-only: Use auto-generated config exclusively
-- Manual-only: Traditional central configuration (still supported)
-- Hybrid: Combine both approaches with `baseConfig` option
-- Extensive plugin customization options
-
-### ✅ **Multi-File Support**
-- Works with `+page.server.ts`, `+page.ts`, and `+server.ts` files
-- Automatic detection of schema exports
-- Hot reload for all supported file types
-
-### ✅ **SvelteKit Compliant**
-Uses underscore-prefixed exports (`_paramsSchema`, `_searchParamsSchema`) which are allowed in SvelteKit page and server files.
-
-## Migration from v1
-
-**Old centralized approach:**
-```typescript
-// routeConfig.ts
-export const { pageInfo, urlGenerator, serverPageInfo } = skRoutes({
-  config: {
-    '/users/[id]': {
-      paramsValidation: z.object({ id: z.string() }).parse
-    }
-  },
-  errorURL: '/error'
-});
-```
-
-**New local approach:**
-```typescript
-// In your +page.server.ts file
-import { serverPageInfo } from 'skroutes';
-import { z } from 'zod';
-
-export const _paramsSchema = z.object({ id: z.string() });
-
-export const load = (data) => {
-  const { current: urlData } = serverPageInfo('/users/[id]', data);
-  // ... rest of your load function
-};
-```
-
-The plugin handles the rest automatically!
-
-## Server Files Support
-
-The plugin also works with `+server.ts` files for API endpoints:
-
-```typescript
-// src/routes/api/users/[id]/+server.ts
-import { json } from '@sveltejs/kit';
-import { z } from 'zod';
-
-export const _paramsSchema = z.object({
-  id: z.string().uuid()
+const result = urlGenerator({
+  address: '/users/[id]',
+  paramsValue: { id: 'invalid-uuid' }
 });
 
-export const _searchParamsSchema = z.object({
-  include: z.array(z.enum(['profile', 'settings'])).optional(),
-  format: z.enum(['json', 'xml']).default('json')
-});
-
-export async function GET({ params, url }) {
-  // Params and search params are automatically validated
-  return json({
-    userId: params.id,
-    query: Object.fromEntries(url.searchParams)
-  });
+if (result.error) {
+  console.log(result.url); // '/error?message=Error+generating+URL'
 }
 ```
 
-## Plugin Configuration Options
+### Standard Schema Support
 
-The `skRoutesPlugin` accepts comprehensive configuration options:
-
-```typescript
-skRoutesPlugin({
-  // Output path for generated configuration
-  outputPath: 'src/lib/.generated/skroutes-config.ts',
-  
-  // Custom schema export names
-  schemaExportName: '_paramsSchema',
-  searchParamsExportName: '_searchParamsSchema',
-  
-  // Custom imports to include in generated file
-  imports: [
-    "import { z } from 'zod';",
-    "import * as v from 'valibot';"
-  ],
-  
-  // Include +server.ts files (default: true)
-  includeServerFiles: true,
-  
-  // Base configuration to merge with auto-generated config
-  baseConfig: {
-    '/legacy/route': {
-      paramsValidation: z.object({ id: z.string() }),
-      searchParamsValidation: z.object({ tab: z.string().optional() })
-    }
-  },
-  
-  // Error URL for validation failures
-  errorURL: '/error'
-})
-```
-
-## Hybrid Configuration
-
-You can combine auto-generated config with manual configuration:
+Works with any Standard Schema-compliant validation library:
 
 ```typescript
-// Use both plugin and manual config
-import { createAutoSkRoutes } from 'skroutes';
+// Zod
 import { z } from 'zod';
+const zodSchema = z.object({ id: z.string() });
 
-const { pageInfo, serverPageInfo, urlGenerator } = createAutoSkRoutes({
-  // Additional manual routes (merged with auto-generated)
+// Valibot
+import * as v from 'valibot';
+const valibotSchema = v.object({ id: v.string() });
+
+// ArkType
+import { type } from 'arktype';
+const arkSchema = type({ id: 'string' });
+
+// Use any of these in your route config
+export const routes = skRoutes({
   config: {
-    '/special/route': {
-      paramsValidation: z.object({ special: z.string() }),
-      searchParamsValidation: z.object({ mode: z.enum(['dev', 'prod']) })
+    '/users/[id]': {
+      paramsValidation: zodSchema, // or valibotSchema, or arkSchema
     }
   },
-  errorURL: '/custom-error'
+  errorURL: '/error'
 });
 ```
-
-## Error Handling and errorURL
-
-skRoutes provides a mechanism to handle errors gracefully through the errorURL configuration. When an error occurs during URL generation, the library will redirect to the specified errorURL with an error message appended as a query parameter.
-
-### How errorURL Works
-
-When defining your route configuration, specify an errorURL:
-
-```typescript
-export const { pageInfo, urlGenerator, serverPageInfo } = skRoutes({
-	config: {
-		// ... your routes
-	},
-	errorURL: '/error'
-});
-```
-
-If an error occurs during URL generation, the urlGenerator function will return an object with the error property set to true and the url property set to the errorURL with an appended error message.
-
-You can then handle this error in your application by checking the error property and displaying the appropriate error message or redirecting to the error page.
-
-### Safe Validation
-
-It's crucial to ensure that your validation functions fail safely. If a validation error occurs, it should not crash your application but instead provide meaningful feedback or redirect to the errorURL.
-
-If you're using zod for validation, it's recommended to use the [.catch](https://github.com/colinhacks/zod#catch) functionality to handle validation errors gracefully:
-
-```typescript
-const validation = z.object({ id: z.string() }).catch({id: "default"}});
-```
-
-By following these practices, you can ensure a smooth user experience even in the face of unexpected input or errors.
-
-## Development & Troubleshooting
-
-### Schema Not Updating?
-
-If your schema changes aren't reflected in the generated types:
-
-```bash
-# Manual regeneration
-pnpm regenerate
-
-# Or restart the dev server
-pnpm dev
-```
-
-### Plugin Not Working?
-
-1. **Check Vite Config**: Ensure `skRoutesPlugin()` is added to your `vite.config.js`
-2. **Schema Exports**: Use underscore-prefixed exports (`_paramsSchema`, `_searchParamsSchema`)
-3. **File Location**: Schemas must be in `+page.server.ts`, `+page.ts`, or `+server.ts` files
-4. **Build Process**: The plugin runs during `buildStart()` and hot updates
-5. **Server Files**: Set `includeServerFiles: true` in plugin options to scan `+server.*` files
-
-### TypeScript Errors?
-
-- Ensure you're importing from `'skroutes'` (not `'skroutes/plugin'`)
-- Check that route IDs match your actual file structure
-- Verify schema syntax is valid Standard Schema
-
-### Generated Config Location
-
-The plugin generates configuration at:
-- `src/lib/.generated/skroutes-config.ts`
-
-This file is auto-generated and should not be edited manually. Add it to your `.gitignore` if desired.
 
 ## API Reference
 
-### Plugin Functions
+### `skRoutes(options)`
 
-- `serverPageInfo<T>(routeId: T, data)` - Server-side route info with validation
-- `pageInfo<T>(routeId: T, pageData)` - Client-side route info with validation  
-- `pageInfoStore<T>(config)` - Reactive store with debounced URL updates
-- `urlGenerator(input)` - Generate URLs with validation
+Creates a route configuration with type-safe utilities.
 
-### Schema Exports
+**Options:**
+- `config`: Object mapping route patterns to validation schemas
+- `errorURL`: URL to redirect to on validation errors
 
-- `_paramsSchema` - Validates route parameters (e.g., `[id]`, `[slug]`)
-- `_searchParamsSchema` - Validates URL search parameters (query string)
+**Returns:**
+- `urlGenerator`: Function to generate validated URLs
+- `pageInfo`: Client-side route information utility
+- `serverPageInfo`: Server-side route information utility  
+- `pageInfoStore`: Reactive store with debounced updates
 
-### Plugin Options
+### Route Configuration
 
-- `outputPath` - Path for generated configuration file
-- `schemaExportName` - Custom name for params schema export (default: `_paramsSchema`)
-- `searchParamsExportName` - Custom name for search params schema export (default: `_searchParamsSchema`)
-- `imports` - Additional imports to include in generated file
-- `includeServerFiles` - Whether to scan `+server.*` files (default: `true`)
-- `baseConfig` - Manual configuration to merge with auto-generated config
-- `errorURL` - URL for validation error redirects
+```typescript
+interface RouteConfig {
+  [routePattern: string]: {
+    paramsValidation?: StandardSchemaV1<unknown, unknown>;
+    searchParamsValidation?: StandardSchemaV1<unknown, unknown>;
+  };
+}
+```
 
-## Documentation
+### URL Generator
 
-For more detailed documentation and advanced usage, please refer to the source code and examples provided in the [Github repository](https://github.com/qwacko/skroutes).
+```typescript
+urlGenerator({
+  address: '/users/[id]',           // Route pattern
+  paramsValue?: { id: 'user123' },  // Route parameters
+  searchParamsValue?: { tab: 'profile' } // Search parameters
+})
+```
+
+**Returns:**
+```typescript
+{
+  address: string;
+  url: string;
+  error: boolean;
+  params?: Record<string, unknown>;
+  searchParams?: Record<string, unknown>;
+}
+```
+
+## Migration Guide
+
+### From v1 to v2
+
+The main change is the switch from custom validation functions to Standard Schema:
+
+**v1 (Old):**
+```typescript
+{
+  paramsValidation: z.object({ id: z.string() }).parse
+}
+```
+
+**v2 (New):**
+```typescript
+{
+  paramsValidation: z.object({ id: z.string() })
+}
+```
+
+All other APIs remain the same.
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines and submit pull requests to our [GitHub repository](https://github.com/qwacko/skroutes).
+
+## License
+
+MIT License - see LICENSE file for details.

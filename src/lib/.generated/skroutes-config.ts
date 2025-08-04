@@ -3,115 +3,28 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { z } from 'zod';
 
 // Inline schema definitions (extracted from page files)
-const autoSchema0_params = z.object({
-  id: z.string().uuid()
-});
-const autoSchema0_searchParams = z.object({
-  include: z.array(z.string()).optional(),
-  format: z.enum(['json', 'xml']).default('json')
-});
-const autoSchema1_config = { /* unified config detected */ };
-const autoSchema2_params = z.object({
+const schema0_params = z.object({
 	id: z.string()
 });
-const autoSchema2_searchParams = z.object({
+const schema0_searchParams = z.object({
 	data: z.string(),
 	date: z.date().optional()
 });
-const autoSchema3_config = { /* unified config detected */ };
-const autoSchema4_config = { /* unified config detected */ };
 
 export const routeConfig = {
-  '/api/users/[id]': {
-          paramsValidation: autoSchema0_params,
-          searchParamsValidation: autoSchema0_searchParams,
-        },
-  '/products/[id]': {
-          paramsValidation: autoSchema1_config.params,
-          searchParamsValidation: autoSchema1_config.searchParams,
-          onParamsError: autoSchema1_config.onParamsError,
-          onSearchParamsError: autoSchema1_config.onSearchParamsError,
-          meta: autoSchema1_config.meta,
-        },
   '/server/[id]': {
-          paramsValidation: autoSchema2_params,
-          searchParamsValidation: autoSchema2_searchParams,
-        },
-  '/type-test/[id]': {
-          paramsValidation: autoSchema3_config.params,
-          searchParamsValidation: autoSchema3_config.searchParams,
-          onParamsError: autoSchema3_config.onParamsError,
-          onSearchParamsError: autoSchema3_config.onSearchParamsError,
-          meta: autoSchema3_config.meta,
-        },
-  '/users/[id]': {
-          paramsValidation: autoSchema4_config.params,
-          searchParamsValidation: autoSchema4_config.searchParams,
-          onParamsError: autoSchema4_config.onParamsError,
-          onSearchParamsError: autoSchema4_config.onSearchParamsError,
-          meta: autoSchema4_config.meta,
-        }
-} as const;
-
-// Export validators for direct access
-export const routeValidators = {
-  '/api/users/[id]': {
-    paramsValidator: autoSchema0_params,
-    searchParamsValidator: autoSchema0_searchParams,
-  },
-  '/products/[id]': {
-    paramsValidator: autoSchema1_config.params,
-    searchParamsValidator: autoSchema1_config.searchParams,
-    onParamsError: autoSchema1_config.onParamsError,
-    onSearchParamsError: autoSchema1_config.onSearchParamsError,
-  },
-  '/server/[id]': {
-    paramsValidator: autoSchema2_params,
-    searchParamsValidator: autoSchema2_searchParams,
-  },
-  '/type-test/[id]': {
-    paramsValidator: autoSchema3_config.params,
-    searchParamsValidator: autoSchema3_config.searchParams,
-    onParamsError: autoSchema3_config.onParamsError,
-    onSearchParamsError: autoSchema3_config.onSearchParamsError,
-  },
-  '/users/[id]': {
-    paramsValidator: autoSchema4_config.params,
-    searchParamsValidator: autoSchema4_config.searchParams,
-    onParamsError: autoSchema4_config.onParamsError,
-    onSearchParamsError: autoSchema4_config.onSearchParamsError,
-  }
+        paramsValidation: schema0_params,
+        searchParamsValidation: schema0_searchParams,
+      }
 } as const;
 
 // Export route keys for type checking
-export type RouteKeys = '/api/users/[id]' | '/products/[id]' | '/server/[id]' | '/type-test/[id]' | '/users/[id]';
+export type RouteKeys = '/server/[id]';
 
 // Export type mapping for schema inference
 export type RouteTypeMap = {
-  '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof autoSchema0_params>; searchParams: StandardSchemaV1.InferOutput<typeof autoSchema0_searchParams> };
-  '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof autoSchema1_config.params> | Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof autoSchema1_config.searchParams> | Record<string, string | string[]> };
-  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof autoSchema2_params>; searchParams: StandardSchemaV1.InferOutput<typeof autoSchema2_searchParams> };
-  '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof autoSchema3_config.params> | Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof autoSchema3_config.searchParams> | Record<string, string | string[]> };
-  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof autoSchema4_config.params> | Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof autoSchema4_config.searchParams> | Record<string, string | string[]> }
+  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof schema0_params>; searchParams: StandardSchemaV1.InferOutput<typeof schema0_searchParams> }
 };
-
-// Export validator type mapping
-export type RouteValidatorMap = {
-  '/api/users/[id]': { paramsValidator: typeof autoSchema0_params; searchParamsValidator: typeof autoSchema0_searchParams };
-  '/products/[id]': { paramsValidator: undefined; searchParamsValidator: undefined };
-  '/server/[id]': { paramsValidator: typeof autoSchema2_params; searchParamsValidator: typeof autoSchema2_searchParams };
-  '/type-test/[id]': { paramsValidator: undefined; searchParamsValidator: undefined };
-  '/users/[id]': { paramsValidator: undefined; searchParamsValidator: undefined }
-};
-
-// Convenience type aliases for accessing route param/search param types
-export type RouteParams<T extends RouteKeys> = RouteTypeMap[T]['params'];
-export type RouteSearchParams<T extends RouteKeys> = RouteTypeMap[T]['searchParams'];
 
 // Re-export types for convenience
-export type { RouteConfig } from '../skRoutes-v2.js';
-
-// Export plugin options for reference
-export const pluginOptions = {
-  "errorURL": "/error"
-};
+export type { RouteConfig } from './skRoutes-v2.js';
