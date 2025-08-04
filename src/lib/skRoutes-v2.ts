@@ -92,9 +92,27 @@ export function skRoutes<Config extends RouteConfig>({
 					throw new Error('Async validation not supported in URL generator');
 				}
 				if ('issues' in result && result.issues) {
-					throw new Error('Params validation failed');
+					// Check for custom error handler
+					if ('onParamsError' in routeDetails && routeDetails.onParamsError) {
+						const errorResult = routeDetails.onParamsError(result, input.paramsValue);
+						if (errorResult) {
+							if ('redirect' in errorResult) {
+								return { error: true, url: errorResult.redirect, address: input.address };
+							} else if ('params' in errorResult) {
+								validatedParams = errorResult.params;
+							} else if (errorResult instanceof Response) {
+								// Can't return Response from URL generator, convert to error
+								return { error: true, url: errorURL + '?error=params_validation_failed', address: input.address };
+							}
+						} else {
+							throw new Error('Params validation failed');
+						}
+					} else {
+						throw new Error('Params validation failed');
+					}
+				} else {
+					validatedParams = result.value;
 				}
-				validatedParams = result.value;
 			}
 
 			let validatedSearchParams;
@@ -108,9 +126,27 @@ export function skRoutes<Config extends RouteConfig>({
 					throw new Error('Async validation not supported in URL generator');
 				}
 				if ('issues' in result && result.issues) {
-					throw new Error('Search params validation failed');
+					// Check for custom error handler
+					if ('onSearchParamsError' in routeDetails && routeDetails.onSearchParamsError) {
+						const errorResult = routeDetails.onSearchParamsError(result, input.searchParamsValue);
+						if (errorResult) {
+							if ('redirect' in errorResult) {
+								return { error: true, url: errorResult.redirect, address: input.address };
+							} else if ('searchParams' in errorResult) {
+								validatedSearchParams = errorResult.searchParams;
+							} else if (errorResult instanceof Response) {
+								// Can't return Response from URL generator, convert to error
+								return { error: true, url: errorURL + '?error=searchparams_validation_failed', address: input.address };
+							}
+						} else {
+							throw new Error('Search params validation failed');
+						}
+					} else {
+						throw new Error('Search params validation failed');
+					}
+				} else {
+					validatedSearchParams = result.value;
 				}
-				validatedSearchParams = result.value;
 			}
 
 			// Construct the URL

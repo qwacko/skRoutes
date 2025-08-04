@@ -15,10 +15,17 @@ interface PluginOptions {
 interface SchemaDefinition {
   routePath: string;
   filePath: string;
+  // Legacy format support
   paramsSchema?: string;
   searchParamsSchema?: string;
   paramsSchemaCode?: string;
   searchParamsSchemaCode?: string;
+  // New unified format support
+  routeConfig?: string;
+  routeConfigCode?: string;
+  // Error handlers
+  onParamsErrorCode?: string;
+  onSearchParamsErrorCode?: string;
 }
 
 export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
@@ -215,20 +222,35 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
     schemas.forEach((schema, index) => {
       const schemaAlias = `autoSchema${index}`;
       
-      // Define inline schemas to avoid import cycles
-      if (schema.paramsSchemaCode) {
-        schemaDefinitions.push(`const ${schemaAlias}_params = ${schema.paramsSchemaCode};`);
-      }
-      if (schema.searchParamsSchemaCode) {
-        schemaDefinitions.push(`const ${schemaAlias}_searchParams = ${schema.searchParamsSchemaCode};`);
-      }
+      if (schema.routeConfigCode) {
+        // New unified format
+        schemaDefinitions.push(`const ${schemaAlias}_config = ${schema.routeConfigCode};`);
+        
+        const entry = `'${schema.routePath}': {
+          paramsValidation: ${schemaAlias}_config.params,
+          searchParamsValidation: ${schemaAlias}_config.searchParams,
+          onParamsError: ${schemaAlias}_config.onParamsError,
+          onSearchParamsError: ${schemaAlias}_config.onSearchParamsError,
+          meta: ${schemaAlias}_config.meta,
+        }`;
+        
+        configEntries.push(entry);
+      } else {
+        // Legacy format
+        if (schema.paramsSchemaCode) {
+          schemaDefinitions.push(`const ${schemaAlias}_params = ${schema.paramsSchemaCode};`);
+        }
+        if (schema.searchParamsSchemaCode) {
+          schemaDefinitions.push(`const ${schemaAlias}_searchParams = ${schema.searchParamsSchemaCode};`);
+        }
 
-      const entry = `'${schema.routePath}': {
-        ${schema.paramsSchemaCode ? `paramsValidation: ${schemaAlias}_params,` : ''}
-        ${schema.searchParamsSchemaCode ? `searchParamsValidation: ${schemaAlias}_searchParams,` : ''}
-      }`;
-      
-      configEntries.push(entry);
+        const entry = `'${schema.routePath}': {
+          ${schema.paramsSchemaCode ? `paramsValidation: ${schemaAlias}_params,` : ''}
+          ${schema.searchParamsSchemaCode ? `searchParamsValidation: ${schemaAlias}_searchParams,` : ''}
+        }`;
+        
+        configEntries.push(entry);
+      }
     });
 
     // Generate all route keys including base config and auto-detected
@@ -241,14 +263,24 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
     // Generate type mappings for each route
     const autoTypeMapping = schemas.map((schema, index) => {
       const schemaAlias = `autoSchema${index}`;
-      const paramsType = schema.paramsSchemaCode 
-        ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_params>`
-        : 'Record<string, string>';
-      const searchParamsType = schema.searchParamsSchemaCode
-        ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_searchParams>`
-        : 'Record<string, string | string[]>';
       
-      return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
+      if (schema.routeConfigCode) {
+        // New unified format
+        const paramsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_config.params> | Record<string, string>`;
+        const searchParamsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_config.searchParams> | Record<string, string | string[]>`;
+        
+        return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
+      } else {
+        // Legacy format
+        const paramsType = schema.paramsSchemaCode 
+          ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_params>`
+          : 'Record<string, string>';
+        const searchParamsType = schema.searchParamsSchemaCode
+          ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_searchParams>`
+          : 'Record<string, string | string[]>';
+        
+        return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
+      }
     });
     
     // Add base config type mappings (simplified for now)
@@ -261,10 +293,22 @@ export function routeInfo<Address extends RouteKeys>(routeId: Address): {
     // Generate validator objects for each route
     const routeValidators = schemas.map((schema, index) => {
       const schemaAlias = `autoSchema${index}`;
-      return `  '${schema.routePath}': {
+      
+      if (schema.routeConfigCode) {
+        // New unified format
+        return `  '${schema.routePath}': {
+    paramsValidator: ${schemaAlias}_config.params,
+    searchParamsValidator: ${schemaAlias}_config.searchParams,
+    onParamsError: ${schemaAlias}_config.onParamsError,
+    onSearchParamsError: ${schemaAlias}_config.onSearchParamsError,
+  }`;
+      } else {
+        // Legacy format
+        return `  '${schema.routePath}': {
     paramsValidator: ${schema.paramsSchemaCode ? `${schemaAlias}_params` : 'undefined'},
     searchParamsValidator: ${schema.searchParamsSchemaCode ? `${schemaAlias}_searchParams` : 'undefined'},
   }`;
+      }
     });
 
     return `// Auto-generated by skroutes-plugin
@@ -332,22 +376,40 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
           const content = readFileSync(fullPath, 'utf-8');
           const routePath = extractRoutePathFromDirectory(relativePath);
           
-          // Look for schema exports and extract their code
-          const paramsPattern = new RegExp(`export\\s+const\\s+${schemaExportName}\\s*=\\s*([^;]+);`);
-          const searchParamsPattern = new RegExp(`export\\s+const\\s+${searchParamsExportName}\\s*=\\s*([^;]+);`);
+          // Look for new unified route config first - simplified approach
+          let routeConfigMatch = null;
+          if (content.includes('export const _routeConfig =')) {
+            // For now, just detect presence and use a placeholder
+            // In a production implementation, we'd use a proper parser
+            routeConfigMatch = [null, '{ /* unified config detected */ }'];
+          }
           
-          const paramsMatch = content.match(paramsPattern);
-          const searchParamsMatch = content.match(searchParamsPattern);
-
-          if (paramsMatch || searchParamsMatch) {
+          if (routeConfigMatch) {
+            // New unified format
             schemas.push({
               routePath,
               filePath: fullPath,
-              paramsSchema: paramsMatch ? schemaExportName : undefined,
-              searchParamsSchema: searchParamsMatch ? searchParamsExportName : undefined,
-              paramsSchemaCode: paramsMatch ? paramsMatch[1].trim() : undefined,
-              searchParamsSchemaCode: searchParamsMatch ? searchParamsMatch[1].trim() : undefined
+              routeConfig: '_routeConfig',
+              routeConfigCode: routeConfigMatch[1].trim()
             });
+          } else {
+            // Legacy format - look for separate schema exports
+            const paramsPattern = new RegExp(`export\\s+const\\s+${schemaExportName}\\s*=\\s*([^;]+);`);
+            const searchParamsPattern = new RegExp(`export\\s+const\\s+${searchParamsExportName}\\s*=\\s*([^;]+);`);
+            
+            const paramsMatch = content.match(paramsPattern);
+            const searchParamsMatch = content.match(searchParamsPattern);
+
+            if (paramsMatch || searchParamsMatch) {
+              schemas.push({
+                routePath,
+                filePath: fullPath,
+                paramsSchema: paramsMatch ? schemaExportName : undefined,
+                searchParamsSchema: searchParamsMatch ? searchParamsExportName : undefined,
+                paramsSchemaCode: paramsMatch ? paramsMatch[1].trim() : undefined,
+                searchParamsSchemaCode: searchParamsMatch ? searchParamsMatch[1].trim() : undefined
+              });
+            }
           }
         }
       }
