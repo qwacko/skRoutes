@@ -2,6 +2,16 @@ import type { Plugin } from 'vite';
 import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
+interface PluginOptions {
+  outputPath?: string;
+  schemaExportName?: string;
+  searchParamsExportName?: string;
+  imports?: string[];
+  includeServerFiles?: boolean;
+  baseConfig?: Record<string, any>;
+  errorURL?: string;
+}
+
 interface SchemaDefinition {
   routePath: string;
   filePath: string;
@@ -11,9 +21,17 @@ interface SchemaDefinition {
   searchParamsSchemaCode?: string;
 }
 
-export function skRoutesPlugin(): Plugin {
+export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
+  const {
+    outputPath = 'src/lib/.generated/skroutes-config.ts',
+    schemaExportName = '_paramsSchema',
+    searchParamsExportName = '_searchParamsSchema',
+    imports = [],
+    includeServerFiles = true,
+    baseConfig = {},
+    errorURL = '/error'
+  } = options;
   let root: string;
-  const CONFIG_FILE_PATH = 'src/lib/.generated/skroutes-config.ts';
 
   return {
     name: 'skroutes-plugin',
@@ -25,8 +43,12 @@ export function skRoutesPlugin(): Plugin {
       generateConfigFile();
     },
     async handleHotUpdate({ file, server }) {
-      // Regenerate config when page files change
-      if (file.includes('+page.') && (file.endsWith('.ts') || file.endsWith('.js'))) {
+      // Regenerate config when page or server files change
+      const isRelevantFile = (
+        (file.includes('+page.') && (file.endsWith('.ts') || file.endsWith('.js'))) ||
+        (includeServerFiles && file.includes('+server.') && (file.endsWith('.ts') || file.endsWith('.js')))
+      );
+      if (isRelevantFile) {
         generateConfigFile();
         // Trigger module update for auto-skroutes
         const autoSkroutesModule = await server.moduleGraph.getModuleByUrl('/src/lib/auto-skroutes.ts');
@@ -39,15 +61,108 @@ export function skRoutesPlugin(): Plugin {
 
   function generateConfigFile(): void {
     const configContent = generateConfigModule();
-    const configPath = join(root, CONFIG_FILE_PATH);
+    const configPath = join(root, outputPath);
     
     // Ensure directory exists
-    const configDir = join(root, 'src/lib/.generated');
+    const configDir = join(root, outputPath.split('/').slice(0, -1).join('/'));
     if (!existsSync(configDir)) {
       mkdirSync(configDir, { recursive: true });
     }
     
     writeFileSync(configPath, configContent, 'utf-8');
+    
+    // Also generate/update the auto-skroutes wrapper
+    generateAutoSkRoutesWrapper();
+  }
+  
+  function generateAutoSkRoutesWrapper(): void {
+    const wrapperPath = join(root, 'src/lib/auto-skroutes.ts');
+    const relativePath = outputPath.replace('src/lib/', './').replace('.ts', '.js');
+    
+    const wrapperContent = `import { skRoutes } from './skRoutes-v2.js';
+import { routeConfig, type RouteKeys, type RouteTypeMap, pluginOptions } from '${relativePath}';
+
+export type { RouteKeys, RouteTypeMap };
+
+export function createAutoSkRoutes(
+  options?: {
+    config?: Record<string, any>;
+    errorURL?: string;
+  }
+) {
+  const finalConfig = {
+    ...routeConfig,
+    ...(options?.config || {})
+  };
+  
+  return skRoutes({
+    config: finalConfig,
+    errorURL: options?.errorURL || pluginOptions.errorURL || '/error'
+  });
+}
+
+// Create typed versions of the functions with route key validation and type inference
+const defaultInstance = createAutoSkRoutes();
+
+// Wrap the functions to provide type-safe route ID checking and schema type inference
+export const urlGenerator = defaultInstance.urlGenerator;
+
+export function pageInfo<Address extends RouteKeys>(
+  routeId: Address,
+  pageInfo: { params: Record<string, string>; url: { search: string } }
+): {
+  current: {
+    address: Address;
+    url: string;
+    error: boolean;
+    params: RouteTypeMap[Address]['params'];
+    searchParams: RouteTypeMap[Address]['searchParams'];
+  };
+  updateParams: (opts: {
+    params?: Partial<RouteTypeMap[Address]['params']>;
+    searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
+  }) => any;
+} {
+  return defaultInstance.pageInfo(routeId, pageInfo) as any;
+}
+
+export function serverPageInfo<Address extends RouteKeys>(
+  routeId: Address,
+  data: {
+    params: Record<string, string>;
+    url: { search: string };
+    route: { id: Address };
+  }
+): {
+  current: {
+    address: Address;
+    url: string;
+    error: boolean;
+    params: RouteTypeMap[Address]['params'];
+    searchParams: RouteTypeMap[Address]['searchParams'];
+  };
+  updateParams: (opts: {
+    params?: Partial<RouteTypeMap[Address]['params']>;
+    searchParams?: Partial<RouteTypeMap[Address]['searchParams']>;
+  }) => any;
+} {
+  return defaultInstance.serverPageInfo(routeId, data) as any;
+}
+
+export function pageInfoStore<Address extends RouteKeys>(config: {
+  routeId: Address;
+  pageInfo: import('svelte/store').Readable<{
+    params: Record<string, string>;
+    url: { search: string };
+  }>;
+  updateDelay?: number;
+  onUpdate: (newUrl: string) => unknown;
+}) {
+  return defaultInstance.pageInfoStore(config);
+}
+`;
+    
+    writeFileSync(wrapperPath, wrapperContent, 'utf-8');
   }
 
   function generateConfigModule(): string {
@@ -55,14 +170,25 @@ export function skRoutesPlugin(): Plugin {
     
     const schemaDefinitions: string[] = [];
     const configEntries: string[] = [];
+    
+    // Add base config entries first
+    Object.entries(baseConfig).forEach(([routePath, config]) => {
+      configEntries.push(`'${routePath}': ${JSON.stringify(config, null, 2).replace(/"/g, '')}`);
+    });
 
-    // First, we need to add zod import since most schemas will use it
+    // Auto-detect needed imports
     const needsZodImport = schemas.some(s => 
       s.paramsSchemaCode?.includes('z.') || s.searchParamsSchemaCode?.includes('z.')
     );
+    
+    const detectedImports = new Set<string>();
+    if (needsZodImport) detectedImports.add("import { z } from 'zod';");
+    
+    // Add custom imports
+    imports.forEach(imp => detectedImports.add(imp));
 
     schemas.forEach((schema, index) => {
-      const schemaAlias = `schema${index}`;
+      const schemaAlias = `autoSchema${index}`;
       
       // Define inline schemas to avoid import cycles
       if (schema.paramsSchemaCode) {
@@ -80,25 +206,36 @@ export function skRoutesPlugin(): Plugin {
       configEntries.push(entry);
     });
 
-    // Generate type-safe route keys and type mapping
-    const routeKeys = schemas.map(s => `'${s.routePath}'`).join(' | ');
+    // Generate all route keys including base config and auto-detected
+    const allRouteKeys = [
+      ...Object.keys(baseConfig).map(k => `'${k}'`),
+      ...schemas.map(s => `'${s.routePath}'`)
+    ];
+    const routeKeys = [...new Set(allRouteKeys)].join(' | ');
     
     // Generate type mappings for each route
-    const typeMapping = schemas.map((schema, index) => {
-      const schemaAlias = `schema${index}`;
+    const autoTypeMapping = schemas.map((schema, index) => {
+      const schemaAlias = `autoSchema${index}`;
       const paramsType = schema.paramsSchemaCode 
         ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_params>`
-        : 'undefined';
+        : 'Record<string, string>';
       const searchParamsType = schema.searchParamsSchemaCode
         ? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}_searchParams>`
-        : 'undefined';
+        : 'Record<string, string | string[]>';
       
       return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
-    }).join(';\n');
+    });
+    
+    // Add base config type mappings (simplified for now)
+    const baseTypeMapping = Object.keys(baseConfig).map(routePath => {
+      return `  '${routePath}': { params: any; searchParams: any }`;
+    });
+    
+    const typeMapping = [...baseTypeMapping, ...autoTypeMapping].join(';\n');
     
     return `// Auto-generated by skroutes-plugin
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-${needsZodImport ? "import { z } from 'zod';" : ''}
+${Array.from(detectedImports).join('\n')}
 
 // Inline schema definitions (extracted from page files)
 ${schemaDefinitions.join('\n')}
@@ -117,6 +254,9 @@ ${typeMapping}
 
 // Re-export types for convenience
 export type { RouteConfig } from '../skRoutes-v2.js';
+
+// Export plugin options for reference
+export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 `;
   }
 
@@ -135,20 +275,23 @@ export type { RouteConfig } from '../skRoutes-v2.js';
         
         if (stat.isDirectory()) {
           walkDirectory(fullPath, join(relativePath, entry));
-        } else if (entry.match(/^\+page\.(server\.)?ts$/)) {
+        } else if (entry.match(/^\+(page|server)\.(server\.)?[tj]s$/)) {
           const content = readFileSync(fullPath, 'utf-8');
           const routePath = extractRoutePathFromDirectory(relativePath);
           
-          // Look for underscore-prefixed schema exports and extract their code
-          const paramsMatch = content.match(/export\s+const\s+_paramsSchema\s*=\s*([^;]+);/);
-          const searchParamsMatch = content.match(/export\s+const\s+_searchParamsSchema\s*=\s*([^;]+);/);
+          // Look for schema exports and extract their code
+          const paramsPattern = new RegExp(`export\\s+const\\s+${schemaExportName}\\s*=\\s*([^;]+);`);
+          const searchParamsPattern = new RegExp(`export\\s+const\\s+${searchParamsExportName}\\s*=\\s*([^;]+);`);
+          
+          const paramsMatch = content.match(paramsPattern);
+          const searchParamsMatch = content.match(searchParamsPattern);
 
           if (paramsMatch || searchParamsMatch) {
             schemas.push({
               routePath,
               filePath: fullPath,
-              paramsSchema: paramsMatch ? '_paramsSchema' : undefined,
-              searchParamsSchema: searchParamsMatch ? '_searchParamsSchema' : undefined,
+              paramsSchema: paramsMatch ? schemaExportName : undefined,
+              searchParamsSchema: searchParamsMatch ? searchParamsExportName : undefined,
               paramsSchemaCode: paramsMatch ? paramsMatch[1].trim() : undefined,
               searchParamsSchemaCode: searchParamsMatch ? searchParamsMatch[1].trim() : undefined
             });

@@ -7,7 +7,8 @@ const schema0_params = z.object({
 	id: z.string()
 });
 const schema0_searchParams = z.object({
-	data: z.string()
+	data: z.string(),
+	date: z.date().optional()
 });
 
 export const routeConfig = {

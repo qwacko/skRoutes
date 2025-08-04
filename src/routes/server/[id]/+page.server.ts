@@ -7,11 +7,20 @@ export const _paramsSchema = z.object({
 });
 
 export const _searchParamsSchema = z.object({
-	data: z.string()
+	data: z.string(),
+	date: z.date().optional()
 });
 
 export const load = (data) => {
 	const { current: urlData } = serverPageInfo('/server/[id]', data);
 
-	return urlData;
+	// Test type checking - urlData.params should be typed as { id: string }
+	// and urlData.searchParams should be typed as { data: string }
+	console.log('Param ID (typed):', urlData.params.id);
+	console.log('Search param data (typed):', urlData.searchParams.data);
+
+	return {
+		params: urlData.params,
+		searchParams: urlData.searchParams
+	};
 };

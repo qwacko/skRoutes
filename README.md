@@ -12,12 +12,13 @@ pnpm add skroutes
 
 ## Features
 
-- 🎯 **Local Schema Definition**: Define validation schemas directly in your page files (NEW!)
-- 🔧 **Vite Plugin**: Automatic route configuration generation during development and build
+- 🎯 **Local Schema Definition**: Define validation schemas directly in your page and server files
+- 🔧 **Flexible Vite Plugin**: Automatic route configuration with extensive customization options
 - 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library
-- 🔒 **Full Type Safety**: Route IDs and schema types are validated at compile time
-- 🚀 **Zero Config**: No central configuration file needed - schemas are co-located with page logic
+- 🔒 **Full Type Safety**: Route IDs and schema types are validated at compile time - no more optional types!
+- 🚀 **Multiple Configuration Modes**: Plugin-only, manual-only, or hybrid approaches
 - 🔄 **Hot Reload**: Automatic regeneration during development when schemas change
+- 🌐 **Server File Support**: Works with both `+page.*` and `+server.*` files
 - 📝 **Typesafe URL generation** based on route configuration, params, and search params
 - 🛠️ **Easy URL manipulation** with different parameters or searchParameters from current URL
 - ✅ **Validation** of route parameters and search parameters
@@ -40,14 +41,19 @@ import { skRoutesPlugin } from 'skroutes/plugin';
 export default defineConfig({
 	plugins: [
 		sveltekit(),
-		skRoutesPlugin()
+		skRoutesPlugin({
+			// Optional configuration
+			imports: ["import { z } from 'zod';"],
+			errorURL: '/error',
+			includeServerFiles: true // Enable +server.ts support
+		})
 	]
 });
 ```
 
-### 2. Define Schemas in Your Page Files
+### 2. Define Schemas in Your Page and Server Files
 
-In your `+page.server.ts` or `+page.ts` files, define schemas locally using underscore-prefixed exports:
+Define schemas locally in your `+page.server.ts`, `+page.ts`, or `+server.ts` files using underscore-prefixed exports:
 
 ```typescript
 // src/routes/users/[id]/+page.server.ts
@@ -69,7 +75,7 @@ export const load = (data) => {
 	const { current: urlData } = serverPageInfo('/users/[id]', data);
 
 	// urlData.params is now typed as { id: string } with UUID validation
-	// urlData.searchParams is typed as { tab?: 'profile' | 'settings', page?: number }
+	// urlData.searchParams is typed as { tab: 'profile' | 'settings' | undefined, page: number | undefined }
 
 	return {
 		user: getUserById(urlData.params.id),
@@ -153,18 +159,25 @@ Works with any [Standard Schema](https://github.com/standard-schema/standard-sch
 - **Valibot**: `v.object({ id: v.string() })`
 - **ArkType**: `type({ id: 'string' })`
 
-### ✅ **Type Safety**
+### ✅ **Enhanced Type Safety**
 - Route IDs are validated at compile time
-- Schema types flow through automatically
+- Schema types flow through automatically - **no more optional types**!
 - TypeScript errors when using wrong route paths
+- Proper type inference from schema definitions
 
-### ✅ **Zero Configuration**
-- No central configuration file to maintain
-- Automatic discovery of page schemas
-- Hot reload during development
+### ✅ **Flexible Configuration**
+- Plugin-only: Use auto-generated config exclusively
+- Manual-only: Traditional central configuration (still supported)
+- Hybrid: Combine both approaches with `baseConfig` option
+- Extensive plugin customization options
+
+### ✅ **Multi-File Support**
+- Works with `+page.server.ts`, `+page.ts`, and `+server.ts` files
+- Automatic detection of schema exports
+- Hot reload for all supported file types
 
 ### ✅ **SvelteKit Compliant**
-Uses underscore-prefixed exports (`_paramsSchema`, `_searchParamsSchema`) which are allowed in SvelteKit page files.
+Uses underscore-prefixed exports (`_paramsSchema`, `_searchParamsSchema`) which are allowed in SvelteKit page and server files.
 
 ## Migration from v1
 
@@ -196,6 +209,89 @@ export const load = (data) => {
 ```
 
 The plugin handles the rest automatically!
+
+## Server Files Support
+
+The plugin also works with `+server.ts` files for API endpoints:
+
+```typescript
+// src/routes/api/users/[id]/+server.ts
+import { json } from '@sveltejs/kit';
+import { z } from 'zod';
+
+export const _paramsSchema = z.object({
+  id: z.string().uuid()
+});
+
+export const _searchParamsSchema = z.object({
+  include: z.array(z.enum(['profile', 'settings'])).optional(),
+  format: z.enum(['json', 'xml']).default('json')
+});
+
+export async function GET({ params, url }) {
+  // Params and search params are automatically validated
+  return json({
+    userId: params.id,
+    query: Object.fromEntries(url.searchParams)
+  });
+}
+```
+
+## Plugin Configuration Options
+
+The `skRoutesPlugin` accepts comprehensive configuration options:
+
+```typescript
+skRoutesPlugin({
+  // Output path for generated configuration
+  outputPath: 'src/lib/.generated/skroutes-config.ts',
+  
+  // Custom schema export names
+  schemaExportName: '_paramsSchema',
+  searchParamsExportName: '_searchParamsSchema',
+  
+  // Custom imports to include in generated file
+  imports: [
+    "import { z } from 'zod';",
+    "import * as v from 'valibot';"
+  ],
+  
+  // Include +server.ts files (default: true)
+  includeServerFiles: true,
+  
+  // Base configuration to merge with auto-generated config
+  baseConfig: {
+    '/legacy/route': {
+      paramsValidation: z.object({ id: z.string() }),
+      searchParamsValidation: z.object({ tab: z.string().optional() })
+    }
+  },
+  
+  // Error URL for validation failures
+  errorURL: '/error'
+})
+```
+
+## Hybrid Configuration
+
+You can combine auto-generated config with manual configuration:
+
+```typescript
+// Use both plugin and manual config
+import { createAutoSkRoutes } from 'skroutes';
+import { z } from 'zod';
+
+const { pageInfo, serverPageInfo, urlGenerator } = createAutoSkRoutes({
+  // Additional manual routes (merged with auto-generated)
+  config: {
+    '/special/route': {
+      paramsValidation: z.object({ special: z.string() }),
+      searchParamsValidation: z.object({ mode: z.enum(['dev', 'prod']) })
+    }
+  },
+  errorURL: '/custom-error'
+});
+```
 
 ## Error Handling and errorURL
 
@@ -248,8 +344,9 @@ pnpm dev
 
 1. **Check Vite Config**: Ensure `skRoutesPlugin()` is added to your `vite.config.js`
 2. **Schema Exports**: Use underscore-prefixed exports (`_paramsSchema`, `_searchParamsSchema`)
-3. **File Location**: Schemas must be in `+page.server.ts` or `+page.ts` files
+3. **File Location**: Schemas must be in `+page.server.ts`, `+page.ts`, or `+server.ts` files
 4. **Build Process**: The plugin runs during `buildStart()` and hot updates
+5. **Server Files**: Set `includeServerFiles: true` in plugin options to scan `+server.*` files
 
 ### TypeScript Errors?
 
@@ -277,6 +374,16 @@ This file is auto-generated and should not be edited manually. Add it to your `.
 
 - `_paramsSchema` - Validates route parameters (e.g., `[id]`, `[slug]`)
 - `_searchParamsSchema` - Validates URL search parameters (query string)
+
+### Plugin Options
+
+- `outputPath` - Path for generated configuration file
+- `schemaExportName` - Custom name for params schema export (default: `_paramsSchema`)
+- `searchParamsExportName` - Custom name for search params schema export (default: `_searchParamsSchema`)
+- `imports` - Additional imports to include in generated file
+- `includeServerFiles` - Whether to scan `+server.*` files (default: `true`)
+- `baseConfig` - Manual configuration to merge with auto-generated config
+- `errorURL` - URL for validation error redirects
 
 ## Documentation
 
