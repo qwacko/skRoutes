@@ -1,58 +1,37 @@
-import { routeInfo, type RouteParams, type RouteSearchParams } from './auto-skroutes.js';
+import { type RouteParams, type RouteSearchParams } from './auto-skroutes.js';
 
 // Example: Using route validation outside of page components
 export function validateUserInput() {
-  // Get the validators for a specific route
-  const serverRouteInfo = routeInfo('/server/[id]');
-  const apiRouteInfo = routeInfo('/api/users/[id]');
-
-  // Access validators directly for external validation
-  const serverParamsValidator = serverRouteInfo.paramsValidator;
-  const serverSearchParamsValidator = serverRouteInfo.searchParamsValidator;
-  
-  const apiParamsValidator = apiRouteInfo.paramsValidator;
-  const apiSearchParamsValidator = apiRouteInfo.searchParamsValidator;
-
-  // Use validators in your logic
-  try {
-    const serverParamsResult = serverParamsValidator!['~standard'].validate({ id: 'test123' });
-    console.log('Server params valid:', serverParamsResult);
-    
-    const apiParamsResult = apiParamsValidator!['~standard'].validate({ id: 'invalid-uuid' });
-    console.log('API params result:', apiParamsResult);
-  } catch (error) {
-    console.error('Validation error:', error);
-  }
-
   // Type-only usage examples
   type ServerParams = RouteParams<'/server/[id]'>; // { id: string }
-  type ServerSearchParams = RouteSearchParams<'/server/[id]'>; // { data: string, date?: Date }
+  type ServerSearchParams = RouteSearchParams<'/server/[id]'>; // Record<string, unknown>
   
-  type ApiParams = RouteParams<'/api/users/[id]'>; // { id: string } (with UUID validation)
-  type ApiSearchParams = RouteSearchParams<'/api/users/[id]'>; // { include?: string[], format: 'json' | 'xml' }
+  type ApiParams = RouteParams<'/api/users/[id]'>; // { id: string }
+  type ApiSearchParams = RouteSearchParams<'/api/users/[id]'>; // Record<string, unknown>
 
   // You can use these types in your functions
   function processServerData(params: ServerParams, searchParams: ServerSearchParams) {
     console.log(`Processing server data for ID: ${params.id}`);
-    console.log(`Data: ${searchParams.data}`);
-    if (searchParams.date) {
+    // Note: searchParams is Record<string, unknown> so we need to cast or check types
+    if (searchParams.data && typeof searchParams.data === 'string') {
+      console.log(`Data: ${searchParams.data}`);
+    }
+    if (searchParams.date && searchParams.date instanceof Date) {
       console.log(`Date: ${searchParams.date.toISOString()}`);
     }
   }
 
   function processApiData(params: ApiParams, searchParams: ApiSearchParams) {
     console.log(`Processing API data for UUID: ${params.id}`);
-    console.log(`Format: ${searchParams.format}`);
-    if (searchParams.include) {
+    if (searchParams.format && typeof searchParams.format === 'string') {
+      console.log(`Format: ${searchParams.format}`);
+    }
+    if (searchParams.include && Array.isArray(searchParams.include)) {
       console.log(`Includes: ${searchParams.include.join(', ')}`);
     }
   }
 
   return {
-    serverParamsValidator,
-    serverSearchParamsValidator,
-    apiParamsValidator,
-    apiSearchParamsValidator,
     processServerData,
     processApiData
   };

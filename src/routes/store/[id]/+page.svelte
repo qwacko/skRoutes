@@ -5,7 +5,7 @@
 	import { pageInfoStore } from '$lib/auto-skroutes';
 
 	const pageStore = pageInfoStore({
-		routeId: '/store/[id]/',
+		routeId: '/store/[id]',
 		pageInfo: page,
 		updateDelay: 500,
 		onUpdate: (newURL) => (browser ? goto(newURL) : undefined)
