@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
-	$: urlInfo = pageInfo('/[id]', $page);
+	const urlInfo = pageInfo('/[id]', page);
 
 	const options = ['Horse', 'Donkey', 'Cat', 'Dog'];
 </script>
