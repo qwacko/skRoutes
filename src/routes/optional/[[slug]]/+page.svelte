@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { pageInfo } from '$lib/auto-skroutes';
+	import { pageInfo } from '$lib/auto-skroutes.svelte';
 
 	// Test optional parameter handling
 	const urlInfo = $derived(pageInfo('/optional/[[slug]]', page));

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { urlGenerator } from '$lib/auto-skroutes';
+	import { urlGenerator } from '$lib/auto-skroutes.svelte';
 	import { goto } from '$app/navigation';
 
 	// Extract error message from URL parameters

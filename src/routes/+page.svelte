@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { urlGenerator } from '$lib/auto-skroutes';
+	import { urlGenerator } from '$lib/auto-skroutes.svelte';
 	import { goto } from '$app/navigation';
 	
 	// Demo data for showcasing different route types

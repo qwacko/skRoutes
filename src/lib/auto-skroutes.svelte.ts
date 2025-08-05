@@ -1,4 +1,4 @@
-import { skRoutes } from './skRoutes.js';
+import { skRoutes } from './skRoutes.svelte.js';
 import {
 	clientRouteConfig,
 	type RouteKeys,

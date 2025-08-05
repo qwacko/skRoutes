@@ -1,5 +1,4 @@
-export { skRoutes } from './skRoutes.js';
-export type { RouteConfig } from './skRoutes.js';
-
+export { skRoutes } from './skRoutes.svelte.js';
+export type { RouteConfig } from './skRoutes.svelte.js';
 
 export { skRoutesPlugin } from './vite-plugin-skroutes.js';

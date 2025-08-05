@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes.svelte.js';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 

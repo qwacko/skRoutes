@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';

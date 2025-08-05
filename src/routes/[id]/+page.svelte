@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes.svelte';
 	import { page } from '$app/state';
 
 	// Basic route with simple string validation

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { skRoutes } from './skRoutes.js';
+import { skRoutes } from './skRoutes.svelte.js';
 import { z } from 'zod';
 
 // Create Zod schemas that are Standard Schema compliant

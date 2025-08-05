@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
+	import { pageInfo, urlGenerator } from '$lib/auto-skroutes.svelte.js';
 	import { page } from '$app/state';
 
 	const { data } = $props();

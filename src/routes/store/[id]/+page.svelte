@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { pageInfo } from '$lib/auto-skroutes';
+	import { pageInfo } from '$lib/auto-skroutes.svelte';
 
 	const urlInfo = $derived(pageInfo('/store/[id]', page));
 
