@@ -102,22 +102,22 @@ export interface RouteConfig {
 	[address: string]: RouteDetails;
 }
 
-type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
+export type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
 	Config[Address]['paramsValidation'] extends StandardSchemaV1<infer T, unknown>
 		? T
 		: Record<string, string>;
 
-type SearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
+export type SearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
 	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<infer T, unknown>
 		? T
 		: Record<string, unknown>;
 
-type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> =
+export type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> =
 	Config[Address]['paramsValidation'] extends StandardSchemaV1<unknown, infer R>
 		? R
 		: Record<string, string>;
 
-type ValidatedSearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
+export type ValidatedSearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
 	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<unknown, infer R>
 		? R
 		: Record<string, unknown>;
@@ -134,6 +134,33 @@ export interface UrlGeneratorResult<Config extends RouteConfig, Address extends 
 	error: boolean;
 	params: ValidatedParamsType<Config, Address>;
 	searchParams: ValidatedSearchParamsType<Config, Address>;
+}
+
+export function createUpdateParams<Config extends RouteConfig, Address extends keyof Config>(
+	routeId: Address,
+	currentParams: Record<string, string>,
+	currentSearch: string,
+	urlGenerator: (input: UrlGeneratorInput<Config, Address>) => UrlGeneratorResult<Config, Address>
+) {
+	return ({
+		params: newParams = {},
+		searchParams: newSearchParams = {}
+	}: {
+		params?: Partial<Record<string, string>>;
+		searchParams?: Partial<Record<string, unknown>>;
+	}) => {
+		const mergedParams = customMerge(currentParams, newParams);
+		const mergedSearch = customMerge(
+			getUrlParams(currentSearch),
+			newSearchParams
+		);
+
+		return urlGenerator({
+			address: routeId,
+			paramsValue: mergedParams as ParamsType<Config, Address>,
+			searchParamsValue: mergedSearch as SearchParamsType<Config, Address>
+		});
+	};
 }
 
 export function createUrlGenerator<Config extends RouteConfig>(config: Config, errorURL: string) {

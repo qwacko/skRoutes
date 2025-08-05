@@ -1,55 +1,18 @@
 import { goto } from '$app/navigation';
 import {
-	customMerge,
 	getUrlParams,
 	createUrlGenerator,
+	createUpdateParams,
 	type RouteConfig,
 	type UrlGeneratorInput,
-	type UrlGeneratorResult
+	type UrlGeneratorResult,
+	type ParamsType,
+	type SearchParamsType,
+	type ValidatedParamsType,
+	type ValidatedSearchParamsType
 } from './helpers.js';
 
 export type { RouteConfig, UrlGeneratorInput, UrlGeneratorResult };
-
-// Type helpers to extract param and search param types from config
-type ParamsType<
-	Config extends RouteConfig,
-	Address extends keyof Config
-> = Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
-	infer T,
-	unknown
->
-	? T
-	: Record<string, string>;
-
-type SearchParamsType<
-	Config extends RouteConfig,
-	Address extends keyof Config
-> = Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
-	infer T,
-	unknown
->
-	? T
-	: Record<string, unknown>;
-
-type ValidatedParamsType<
-	Config extends RouteConfig,
-	Address extends keyof Config
-> = Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
-	unknown,
-	infer R
->
-	? R
-	: Record<string, string>;
-
-type ValidatedSearchParamsType<
-	Config extends RouteConfig,
-	Address extends keyof Config
-> = Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
-	unknown,
-	infer R
->
-	? R
-	: Record<string, unknown>;
 
 type RouteUpdateAction = 'goto' | 'nil';
 
@@ -85,6 +48,26 @@ export function skRoutes<Config extends RouteConfig>({
 
 		// Use a simple object that can be reactive in Svelte 5 context
 
+		const updateParamsHelper = createUpdateParams(
+			routeId as string,
+			pageInfo.params,
+			pageInfo.url.search,
+			urlGenerator
+		);
+
+		const updateParamsURLGenerator = ({
+			params: newParams = {},
+			searchParams: newSearchParams = {}
+		}: {
+			params?: Partial<ValidatedParamsType<Config, Address>>;
+			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
+		}) => {
+			return updateParamsHelper({ 
+				params: newParams as Partial<Record<string, string>>, 
+				searchParams: newSearchParams as Partial<Record<string, unknown>>
+			});
+		};
+
 		const updateParams = ({
 			params: newParams = {},
 			searchParams: newSearchParams = {}
@@ -92,20 +75,13 @@ export function skRoutes<Config extends RouteConfig>({
 			params?: Partial<ValidatedParamsType<Config, Address>>;
 			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
 		}) => {
-			const mergedParams = customMerge(pageInfo.params, newParams as Record<string, string>);
-			const mergedSearch = customMerge(
-				getUrlParams(pageInfo.url.search),
-				newSearchParams as Record<string, unknown>
-			);
-
-			const result = urlGenerator({
-				address: routeId,
-				paramsValue: mergedParams as ParamsType<Config, Address>,
-				searchParamsValue: mergedSearch as SearchParamsType<Config, Address>
+			const result = updateParamsHelper({ 
+				params: newParams as Partial<Record<string, string>>, 
+				searchParams: newSearchParams as Partial<Record<string, unknown>>
 			});
 
-			state.params = result.params;
-			state.searchParams = result.searchParams;
+			state.params = result.params as ValidatedParamsType<Config, Address>;
+			state.searchParams = result.searchParams as ValidatedSearchParamsType<Config, Address>;
 
 			if (timeoutId) {
 				clearTimeout(timeoutId);
@@ -131,7 +107,8 @@ export function skRoutes<Config extends RouteConfig>({
 			get current() {
 				return { params: state.params, searchParams: state.searchParams };
 			},
-			updateParams
+			updateParams,
+			updateParamsURLGenerator
 		};
 	};
 

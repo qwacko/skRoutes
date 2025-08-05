@@ -1,24 +1,13 @@
 import { 
-	customMerge, 
-	getUrlParams, 
+	getUrlParams,
 	createUrlGenerator,
-	type RouteConfig
+	createUpdateParams,
+	type RouteConfig,
+	type ParamsType,
+	type SearchParamsType
 } from './helpers.js';
 
 export interface ServerRouteConfig extends RouteConfig {}
-
-// Type helpers to extract param and search param types from config
-type ParamsType<Config extends ServerRouteConfig, Address extends keyof Config> =
-	Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<infer T, unknown> ? T : Record<string, string>;
-
-type SearchParamsType<Config extends ServerRouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<infer T, unknown> ? T : Record<string, unknown>;
-
-type ValidatedParamsType<Config extends ServerRouteConfig, Address extends keyof Config> = 
-	Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<unknown, infer R> ? R : Record<string, string>;
-
-type ValidatedSearchParamsType<Config extends ServerRouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<unknown, infer R> ? R : Record<string, unknown>;
 
 export function skRoutesServer<Config extends ServerRouteConfig>({
 	errorURL,
@@ -43,25 +32,12 @@ export function skRoutesServer<Config extends ServerRouteConfig>({
 			searchParamsValue: getUrlParams(data.url.search) as SearchParamsType<Config, Address>
 		});
 
-		const updateParams = ({
-			params = {},
-			searchParams = {}
-		}: {
-			params?: Partial<ValidatedParamsType<Config, Address>>;
-			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
-		}) => {
-			const mergedParams = customMerge(data.params, params as Record<string, string>);
-			const mergedSearch = customMerge(
-				getUrlParams(data.url.search),
-				searchParams as Record<string, unknown>
-			);
-
-			return urlGenerator({
-				address: routeId,
-				paramsValue: mergedParams as ParamsType<Config, Address>,
-				searchParamsValue: mergedSearch as SearchParamsType<Config, Address>
-			});
-		};
+		const updateParams = createUpdateParams(
+			routeId as string,
+			data.params,
+			data.url.search,
+			urlGenerator
+		);
 
 		return { current, updateParams };
 	};
