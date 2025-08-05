@@ -10,4 +10,4 @@
 
 <h1>Optional Parameter Test</h1>
 <p>Current slug: {current.params.slug || 'undefined'}</p>
-<p>URL: {current.url}</p>
+<p>Slug: {current.params.slug || 'none'}</p>

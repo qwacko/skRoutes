@@ -2,14 +2,9 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { pageInfoStore } from '$lib/auto-skroutes';
+	import { pageInfo } from '$lib/auto-skroutes';
 
-	const pageStore = pageInfoStore({
-		routeId: '/store/[id]',
-		pageInfo: page,
-		updateDelay: 500,
-		onUpdate: (newURL) => (browser ? goto(newURL) : undefined)
-	});
+	const { current, updateParams } = pageInfo('/store/[id]', $page);
 
 	const handleInput = (
 		newValue: Event & {
@@ -18,32 +13,46 @@
 	) => {
 		if (newValue.target && 'value' in newValue.target) {
 			const newString = newValue.target.value as string;
-			if ($pageStore.searchParams && $pageStore.searchParams.nested) {
-				$pageStore.searchParams.nested.item1 = newString;
-			} else {
-				// Handle the case where `nested` doesn't exist yet
-				$pageStore.searchParams = {
-					...$pageStore.searchParams,
+			updateParams({
+				searchParams: {
 					nested: { item1: newString }
-				};
-			}
+				}
+			});
+		}
+	};
+
+	const handleIdChange = (
+		newValue: Event & {
+			currentTarget: EventTarget & HTMLInputElement;
+		}
+	) => {
+		if (newValue.target && 'value' in newValue.target) {
+			const newId = newValue.target.value as string;
+			updateParams({
+				params: { id: newId }
+			});
 		}
 	};
 </script>
 
-{#if $pageStore.params}
-	<label for="topLevel">ID</label>
-	<input id="topLevel" type="string" bind:value={$pageStore.params.id} />
+{#if current.params}
+	<label for="idInput">ID</label>
+	<input 
+		id="idInput" 
+		type="string" 
+		value={current.params.id}
+		on:input={(newValue) => handleIdChange(newValue)}
+	/>
 {/if}
 
-{#if $pageStore.searchParams}
-	<label for="topLevel">item1</label>
+{#if current.searchParams}
+	<label for="item1Input">item1</label>
 	<input
-		id="topLevel"
+		id="item1Input"
 		type="string"
-		value={$pageStore.searchParams?.nested?.item1}
+		value={(current.searchParams as any)?.nested?.item1 || ''}
 		on:input={(newValue) => handleInput(newValue)}
 	/>
 {/if}
 
-<pre>{JSON.stringify($pageStore, null, 2)}</pre>
+<pre>{JSON.stringify(current, null, 2)}</pre>

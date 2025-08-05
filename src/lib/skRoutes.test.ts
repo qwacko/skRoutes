@@ -13,7 +13,7 @@ const userSearchParamsSchema = z.object({
 });
 
 describe('skRoutes with Standard Schema', () => {
-	const { urlGenerator, serverPageInfo } = skRoutes({
+	const { urlGenerator } = skRoutes({
 		config: {
 			'/users/[id]': {
 				paramsValidation: userParamsSchema,
@@ -47,16 +47,22 @@ describe('skRoutes with Standard Schema', () => {
 		expect(result.url).toContain('/error');
 	});
 
-	it('should work with serverPageInfo', () => {
+	it('should work with pageInfo', () => {
 		const mockPageData = {
 			params: { id: 'user123' },
-			url: { search: '?tab=settings&page=2' },
-			route: { id: '/users/[id]' as const }
+			url: { search: '?tab=settings&page=2' }
 		};
 
-		const { current } = serverPageInfo('/users/[id]', mockPageData);
+		const { current } = skRoutes({
+			config: {
+				'/users/[id]': {
+					paramsValidation: userParamsSchema,
+					searchParamsValidation: userSearchParamsSchema
+				}
+			},
+			errorURL: '/error'
+		}).pageInfo('/users/[id]', mockPageData);
 
-		expect(current.error).toBe(false);
 		expect(current.params).toEqual({ id: 'user123' });
 		expect(current.searchParams).toEqual({ tab: 'settings', page: 2 });
 	});

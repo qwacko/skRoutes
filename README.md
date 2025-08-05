@@ -16,7 +16,7 @@ pnpm add skroutes
 - 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library
 - 📝 **Type-safe URL generation** with automatic validation and proper return types
 - 🛠️ **Easy URL manipulation** with strongly typed parameter updates
-- 🎨 **Reactive stores** with debounced URL updates and type inference
+- 🎨 **Reactive state management** with debounced URL updates and Svelte 5 runes support
 - 🚦 **TypeScript validation** of route addresses with compile-time checking
 - ⚡ **Generic Type System**: All functions are properly generic and infer types from your route configuration
 - 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed!
@@ -30,7 +30,7 @@ pnpm add skroutes
 import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
-export const { urlGenerator, pageInfo, serverPageInfo, pageInfoStore } = skRoutes({
+export const { urlGenerator, pageInfo } = skRoutes({
   config: {
     '/users/[id]': {
       paramsValidation: z.object({ 
@@ -82,7 +82,20 @@ const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searc
 
 ```typescript
 // src/routes/users/[id]/+page.server.ts
-import { serverPageInfo } from '$lib/routes';
+import { skRoutesServer } from 'skroutes/server';
+import { z } from 'zod';
+
+const { serverPageInfo } = skRoutesServer({
+  config: {
+    '/users/[id]': {
+      paramsValidation: z.object({ id: z.string().uuid() }),
+      searchParamsValidation: z.object({ 
+        tab: z.enum(['profile', 'settings']).optional() 
+      })
+    }
+  },
+  errorURL: '/error'
+});
 
 export const load = (data) => {
   const { current } = serverPageInfo('/users/[id]', data);
@@ -102,58 +115,43 @@ export const load = (data) => {
 <script lang="ts">
   import { pageInfo } from '$lib/routes';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
 
-  $: urlInfo = pageInfo('/users/[id]', $page);
+  const { current, updateParams } = pageInfo(
+    '/users/[id]', 
+    $page,
+    500, // debounce delay
+    (newUrl) => browser ? goto(newUrl) : undefined // auto-navigation
+  );
+  
   const tabs = ['profile', 'settings'] as const;
+  
+  function switchTab(tab: string) {
+    updateParams({ searchParams: { tab } });
+  }
 </script>
 
 <div class="page">
-  <h1>User: {urlInfo.current.params.id}</h1>
-  <p>Current Tab: {urlInfo.current.searchParams?.tab || 'profile'}</p>
+  <h1>User: {current.params.id}</h1>
+  <p>Current Tab: {current.searchParams?.tab || 'profile'}</p>
   
   <div class="tabs">
     {#each tabs as tab}
-      <a 
-        href={urlInfo.updateParams({ searchParams: { tab } }).url}
-        class:active={urlInfo.current.searchParams?.tab === tab}
+      <button 
+        on:click={() => switchTab(tab)}
+        class:active={current.searchParams?.tab === tab}
       >
         {tab}
-      </a>
+      </button>
     {/each}
   </div>
 </div>
 ```
 
-### 4. Reactive Store with Auto-Navigation
+### 4. Auto-Generated Routes with Vite Plugin
 
-```svelte
-<script lang="ts">
-  import { pageInfoStore } from '$lib/routes';
-  import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
-
-  const urlStore = pageInfoStore({
-    routeId: '/users/[id]',
-    pageInfo: page,
-    updateDelay: 500, // Debounce URL updates
-    onUpdate: (newUrl) => goto(newUrl) // Auto-navigate on changes
-  });
-
-  // Reactive updates to URL parameters
-  function updateTab(tab: string) {
-    $urlStore.searchParams = { ...$urlStore.searchParams, tab };
-  }
-</script>
-
-<button on:click={() => updateTab('profile')}>Profile</button>
-<button on:click={() => updateTab('settings')}>Settings</button>
-```
-
-## Advanced Usage
-
-### Auto-Generated Configuration with Vite Plugin
-
-For larger projects, use the Vite plugin to automatically generate route configurations:
+For the best developer experience, use the Vite plugin to automatically generate typed routes:
 
 ```javascript
 // vite.config.js
@@ -172,23 +170,56 @@ export default defineConfig({
 });
 ```
 
-Then define schemas directly in your page files:
+Then use the auto-generated routes:
 
 ```typescript
-// src/routes/users/[id]/+page.server.ts
-import { serverPageInfo } from 'skroutes';
+// Import from the auto-generated file
+import { urlGenerator, pageInfo } from '$lib/auto-skroutes';
+
+// All your routes are automatically typed and available!
+const userUrl = urlGenerator({
+  address: '/users/[id]', // ✅ Auto-completed and type-checked
+  paramsValue: { id: 'user123' }
+});
+```
+
+## Advanced Usage
+
+### Manual Configuration
+
+You can also manually configure routes without the plugin:
+
+```typescript
+// src/lib/routes.ts
+import { skRoutes } from 'skroutes';
+import { skRoutesServer } from 'skroutes/server';
 import { z } from 'zod';
 
-export const _paramsSchema = z.object({ id: z.string().uuid() });
-export const _searchParamsSchema = z.object({ 
-  tab: z.enum(['profile', 'settings']).optional() 
+// Client-side routes
+export const { urlGenerator, pageInfo } = skRoutes({
+  config: {
+    '/users/[id]': {
+      paramsValidation: z.object({ id: z.string().uuid() }),
+      searchParamsValidation: z.object({ 
+        tab: z.enum(['profile', 'settings']).optional() 
+      })
+    }
+  },
+  errorURL: '/error'
 });
 
-export const load = (data) => {
-  const { current } = serverPageInfo('/users/[id]', data);
-  // Fully typed with automatic validation
-  return { user: getUserById(current.params.id) };
-};
+// Server-side routes (separate import)
+export const { serverPageInfo } = skRoutesServer({
+  config: {
+    '/users/[id]': {
+      paramsValidation: z.object({ id: z.string().uuid() }),
+      searchParamsValidation: z.object({ 
+        tab: z.enum(['profile', 'settings']).optional() 
+      })
+    }
+  },
+  errorURL: '/error'
+});
 ```
 
 ### Error Handling
@@ -246,9 +277,7 @@ Creates a route configuration with type-safe utilities.
 
 **Returns:**
 - `urlGenerator`: Function to generate validated URLs
-- `pageInfo`: Client-side route information utility
-- `serverPageInfo`: Server-side route information utility  
-- `pageInfoStore`: Reactive store with debounced updates
+- `pageInfo`: Client-side route information utility with optional debounced updates
 
 ### Route Configuration
 
@@ -277,8 +306,33 @@ urlGenerator({
   address: string;
   url: string;
   error: boolean;
-  params?: Record<string, unknown>;
-  searchParams?: Record<string, unknown>;
+  params: Record<string, unknown>;     // Never undefined
+  searchParams: Record<string, unknown>; // Never undefined
+}
+```
+
+### Page Info
+
+```typescript
+pageInfo(
+  routeId: '/users/[id]',           // Route pattern
+  pageData: { params: {...}, url: {...} }, // SvelteKit page data
+  updateDelay?: 1000,               // Optional debounce delay (ms)
+  onUpdate?: (newUrl: string) => void // Optional callback for URL changes
+)
+```
+
+**Returns:**
+```typescript
+{
+  current: {
+    params: Record<string, unknown>;     // Current validated params
+    searchParams: Record<string, unknown>; // Current validated search params
+  };
+  updateParams: (updates: {
+    params?: Partial<ParamsType>;
+    searchParams?: Partial<SearchParamsType>;
+  }) => UrlGeneratorResult;
 }
 ```
 
@@ -286,23 +340,31 @@ urlGenerator({
 
 ### From v1 to v2
 
-The main change is the switch from custom validation functions to Standard Schema:
+**Major Changes:**
+1. **Standard Schema**: No more `.parse` - pass schemas directly
+2. **Svelte 5 Support**: `pageInfo` now supports runes and optional debounced updates
+3. **Simplified API**: Removed `pageInfoStore` - use `pageInfo` with callbacks instead
+4. **Server Separation**: `serverPageInfo` moved to separate `skroutes/server` import
 
 **v1 (Old):**
 ```typescript
-{
-  paramsValidation: z.object({ id: z.string() }).parse
-}
+// Old validation
+{ paramsValidation: z.object({ id: z.string() }).parse }
+
+// Old store usage
+const store = pageInfoStore({ routeId, pageInfo: page, onUpdate: goto });
+$store.searchParams = { tab: 'profile' };
 ```
 
 **v2 (New):**
 ```typescript
-{
-  paramsValidation: z.object({ id: z.string() })
-}
-```
+// New validation
+{ paramsValidation: z.object({ id: z.string() }) }
 
-All other APIs remain the same.
+// New pageInfo usage
+const { current, updateParams } = pageInfo(routeId, $page, 500, goto);
+updateParams({ searchParams: { tab: 'profile' } });
+```
 
 ## Contributing
 
