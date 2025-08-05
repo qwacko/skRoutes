@@ -103,16 +103,24 @@ export interface RouteConfig {
 }
 
 type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['paramsValidation'] extends StandardSchemaV1<infer T, unknown> ? T : Record<string, string>;
+	Config[Address]['paramsValidation'] extends StandardSchemaV1<infer T, unknown>
+		? T
+		: Record<string, string>;
 
 type SearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<infer T, unknown> ? T : Record<string, unknown>;
+	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<infer T, unknown>
+		? T
+		: Record<string, unknown>;
 
-type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> = 
-	Config[Address]['paramsValidation'] extends StandardSchemaV1<unknown, infer R> ? R : Record<string, string>;
+type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> =
+	Config[Address]['paramsValidation'] extends StandardSchemaV1<unknown, infer R>
+		? R
+		: Record<string, string>;
 
 type ValidatedSearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<unknown, infer R> ? R : Record<string, unknown>;
+	Config[Address]['searchParamsValidation'] extends StandardSchemaV1<unknown, infer R>
+		? R
+		: Record<string, unknown>;
 
 export interface UrlGeneratorInput<Config extends RouteConfig, Address extends keyof Config> {
 	address: Address;
@@ -128,10 +136,7 @@ export interface UrlGeneratorResult<Config extends RouteConfig, Address extends 
 	searchParams: ValidatedSearchParamsType<Config, Address>;
 }
 
-export function createUrlGenerator<Config extends RouteConfig>(
-	config: Config,
-	errorURL: string
-) {
+export function createUrlGenerator<Config extends RouteConfig>(config: Config, errorURL: string) {
 	return <Address extends keyof Config>(
 		input: UrlGeneratorInput<Config, Address>
 	): UrlGeneratorResult<Config, Address> => {
@@ -141,7 +146,8 @@ export function createUrlGenerator<Config extends RouteConfig>(
 				throw new Error(`Route not found: ${String(input.address)}`);
 			}
 
-			let validatedParams: ValidatedParamsType<Config, Address> = (input.paramsValue || {}) as ValidatedParamsType<Config, Address>;
+			let validatedParams: ValidatedParamsType<Config, Address> = (input.paramsValue ||
+				{}) as ValidatedParamsType<Config, Address>;
 			if (routeDetails.paramsValidation && input.paramsValue) {
 				const result = routeDetails.paramsValidation['~standard'].validate(input.paramsValue);
 				if (result instanceof Promise) {
@@ -153,9 +159,12 @@ export function createUrlGenerator<Config extends RouteConfig>(
 				validatedParams = result.value as ValidatedParamsType<Config, Address>;
 			}
 
-			let validatedSearchParams: ValidatedSearchParamsType<Config, Address> = (input.searchParamsValue || {}) as ValidatedSearchParamsType<Config, Address>;
+			let validatedSearchParams: ValidatedSearchParamsType<Config, Address> =
+				(input.searchParamsValue || {}) as ValidatedSearchParamsType<Config, Address>;
 			if (routeDetails.searchParamsValidation && input.searchParamsValue) {
-				const result = routeDetails.searchParamsValidation['~standard'].validate(input.searchParamsValue);
+				const result = routeDetails.searchParamsValidation['~standard'].validate(
+					input.searchParamsValue
+				);
 				if (result instanceof Promise) {
 					throw new Error('Async validation not supported in URL generator');
 				}
@@ -204,7 +213,10 @@ export function createUrlGenerator<Config extends RouteConfig>(
 			url = url.replace(/\/\([^)]+\)/g, '');
 
 			// Append search params to the URL
-			if (validatedSearchParams && Object.keys(validatedSearchParams as Record<string, unknown>).length > 0) {
+			if (
+				validatedSearchParams &&
+				Object.keys(validatedSearchParams as Record<string, unknown>).length > 0
+			) {
 				const searchParams = objectToSearchParams(validatedSearchParams as Record<string, unknown>);
 				url += `?${searchParams.toString()}`;
 			}

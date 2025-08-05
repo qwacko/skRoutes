@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { browser } from '$app/environment';
 
 	// Basic route with simple string validation
 	const urlInfo = $derived(pageInfo('/[id]', page));
@@ -21,6 +19,7 @@
 	const pages = [1, 2, 3, 4, 5];
 
 	function switchTab(tab: (typeof tabs)[number]) {
+		console.log('Switching tab to:', tab);
 		urlInfo.updateParams({ searchParams: { tab } });
 	}
 
@@ -131,14 +130,14 @@ searchParamsValidation: z.object(&#123;
 				<h3>Tab</h3>
 				<div class="tab-buttons">
 					<button
-						onclick={() => switchTab('profile')}
+						onclick={() => urlInfo.updateParams({ searchParams: { tab: 'profile' } })}
 						class="control-button"
 						class:active={activeTab === 'profile'}
 					>
 						Profile
 					</button>
 					<button
-						onclick={() => switchTab('settings')}
+						onclick={() => urlInfo.updateParams({ searchParams: { tab: 'settings' } })}
 						class="control-button"
 						class:active={activeTab === 'settings'}
 					>

@@ -1,3 +1,4 @@
+import { goto } from '$app/navigation';
 import {
 	customMerge,
 	getUrlParams,
@@ -50,22 +51,31 @@ type ValidatedSearchParamsType<
 	? R
 	: Record<string, unknown>;
 
+type RouteUpdateAction = 'goto' | 'nil';
+
 export function skRoutes<Config extends RouteConfig>({
 	errorURL,
-	config
+	config,
+	updateAction = 'goto'
 }: {
 	errorURL: string;
 	config: Config;
+	updateAction?: RouteUpdateAction;
 }) {
 	const urlGenerator = createUrlGenerator(config, errorURL);
 
 	const pageInfo = <Address extends keyof Config>(
 		routeId: Address,
 		pageInfo: { params: Record<string, string>; url: { search: string } },
-		updateDelay = 1000,
-		onUpdate?: (newUrl: string) => unknown
+		config: {
+			updateDelay?: number;
+			onUpdate?: (newUrl: string) => unknown;
+			updateAction?: RouteUpdateAction;
+		} = {}
 	) => {
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+		const usedUpdateAction = config.updateAction || updateAction;
 
 		const state = urlGenerator({
 			address: routeId,
@@ -97,14 +107,22 @@ export function skRoutes<Config extends RouteConfig>({
 			state.params = result.params;
 			state.searchParams = result.searchParams;
 
-			if (onUpdate) {
-				if (timeoutId) {
-					clearTimeout(timeoutId);
-				}
-				timeoutId = setTimeout(() => {
-					onUpdate(result.url);
-				}, updateDelay);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
 			}
+			timeoutId = setTimeout(
+				() => {
+					if (config.onUpdate) {
+						config.onUpdate(result.url);
+					}
+					if (usedUpdateAction === 'goto') {
+						goto(result.url, { noScroll: true, keepFocus: true });
+					} else if (usedUpdateAction === 'nil') {
+						// Do nothing, just update state
+					}
+				},
+				config.updateDelay ? config.updateDelay * 1000 : 0
+			);
 
 			return result;
 		};
