@@ -1,6 +1,6 @@
-import { 
-	customMerge, 
-	getUrlParams, 
+import {
+	customMerge,
+	getUrlParams,
 	createUrlGenerator,
 	type RouteConfig,
 	type UrlGeneratorInput,
@@ -10,17 +10,45 @@ import {
 export type { RouteConfig, UrlGeneratorInput, UrlGeneratorResult };
 
 // Type helpers to extract param and search param types from config
-type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<infer T, unknown> ? T : Record<string, string>;
+type ParamsType<
+	Config extends RouteConfig,
+	Address extends keyof Config
+> = Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
+	infer T,
+	unknown
+>
+	? T
+	: Record<string, string>;
 
-type SearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<infer T, unknown> ? T : Record<string, unknown>;
+type SearchParamsType<
+	Config extends RouteConfig,
+	Address extends keyof Config
+> = Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
+	infer T,
+	unknown
+>
+	? T
+	: Record<string, unknown>;
 
-type ValidatedParamsType<Config extends RouteConfig, Address extends keyof Config> = 
-	Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<unknown, infer R> ? R : Record<string, string>;
+type ValidatedParamsType<
+	Config extends RouteConfig,
+	Address extends keyof Config
+> = Config[Address]['paramsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
+	unknown,
+	infer R
+>
+	? R
+	: Record<string, string>;
 
-type ValidatedSearchParamsType<Config extends RouteConfig, Address extends keyof Config> =
-	Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<unknown, infer R> ? R : Record<string, unknown>;
+type ValidatedSearchParamsType<
+	Config extends RouteConfig,
+	Address extends keyof Config
+> = Config[Address]['searchParamsValidation'] extends import('@standard-schema/spec').StandardSchemaV1<
+	unknown,
+	infer R
+>
+	? R
+	: Record<string, unknown>;
 
 export function skRoutes<Config extends RouteConfig>({
 	errorURL,
@@ -38,18 +66,14 @@ export function skRoutes<Config extends RouteConfig>({
 		onUpdate?: (newUrl: string) => unknown
 	) => {
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
-		
-		const current = urlGenerator({
+
+		const state = urlGenerator({
 			address: routeId,
 			paramsValue: pageInfo.params as ParamsType<Config, Address>,
 			searchParamsValue: getUrlParams(pageInfo.url.search) as SearchParamsType<Config, Address>
 		});
 
 		// Use a simple object that can be reactive in Svelte 5 context
-		const state = {
-			params: current.params,
-			searchParams: current.searchParams
-		};
 
 		const updateParams = ({
 			params: newParams = {},
@@ -85,11 +109,11 @@ export function skRoutes<Config extends RouteConfig>({
 			return result;
 		};
 
-		return { 
+		return {
 			get current() {
 				return { params: state.params, searchParams: state.searchParams };
 			},
-			updateParams 
+			updateParams
 		};
 	};
 

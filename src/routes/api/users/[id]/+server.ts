@@ -1,4 +1,3 @@
-import { serverPageInfo } from '$lib/auto-skroutes-server.js';
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RouteConfigDefinition } from '$lib/route-config-types';
@@ -14,11 +13,13 @@ export const _routeConfig = {
 	})
 } satisfies RouteConfigDefinition;
 
-export async function GET(data) {
-	const { current: urlInfo } = serverPageInfo('/server/[id]', data);
-	// This would be properly typed if we used serverPageInfo here
+export async function GET({ params, url }: any) {
+	// Simple API endpoint without serverPageInfo for now
 	return json({
-		userId: urlInfo.params.id,
-		query: urlInfo.searchParams
+		userId: params.id,
+		query: {
+			include: url.searchParams.getAll('include'),
+			format: url.searchParams.get('format') || 'json'
+		}
 	});
 }

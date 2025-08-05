@@ -1,4 +1,4 @@
-import { skRoutes } from './skRoutes';
+import { skRoutes } from './skRoutes.js';
 import {
 	clientRouteConfig,
 	type RouteKeys,
@@ -6,11 +6,11 @@ import {
 	type RouteParams,
 	type RouteSearchParams,
 	pluginOptions
-} from './.generated/skroutes-client-config';
+} from './.generated/skroutes-client-config.js';
 
 export type { RouteKeys, RouteTypeMap, RouteParams, RouteSearchParams };
 
-export const { urlGenerator, pageInfo } = skRoutes({
+export const { pageInfo, urlGenerator } = skRoutes({
 	config: clientRouteConfig,
 	errorURL: pluginOptions.errorURL || '/error'
 });

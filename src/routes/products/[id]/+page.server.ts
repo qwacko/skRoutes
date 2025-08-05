@@ -1,7 +1,5 @@
-import { serverPageInfo } from '$lib/auto-skroutes-server.js';
-import type { RouteConfigDefinition } from '$lib/route-config-types';
-import { skRoutes, type RouteConfig } from '$lib/skRoutes.js';
 import { z } from 'zod';
+import type { RouteConfigDefinition } from '$lib/route-config-types';
 
 // Route configuration for the plugin (using current library format)
 export const _routeConfig = {
@@ -16,18 +14,15 @@ export const _routeConfig = {
 	})
 } satisfies RouteConfigDefinition;
 
-export const load = async (data: any) => {
-	const { current: urlData } = serverPageInfo('/products/[id]', data);
-
-	// Now fully typed with proper inference from the schemas above
-	const productId = urlData.params.id; // string (with regex validation)
-	const color = urlData.searchParams.color; // string | undefined
-	const size = urlData.searchParams.size; // 'S' | 'M' | 'L' | 'XL' | undefined
-	const inStock = urlData.searchParams.inStock; // boolean
-	const page = urlData.searchParams.page; // number
-
+export const load = async ({ params, url }: any) => {
+	// Simple server-side data loading without serverPageInfo for now
 	return {
-		productId,
-		filters: { color, size, inStock, page }
+		productId: params.id,
+		filters: {
+			color: url.searchParams.get('color'),
+			size: url.searchParams.get('size'),
+			inStock: url.searchParams.get('inStock') !== 'false',
+			page: parseInt(url.searchParams.get('page') || '1')
+		}
 	};
 };

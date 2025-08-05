@@ -46,6 +46,16 @@ export const serverRouteConfig = {
       }
     },
         },
+  '/error': {
+          paramsValidation: undefined,
+          searchParamsValidation: {
+      '~standard': {
+        version: 1,
+        vendor: 'skroutes',
+        validate: (v: any) => ({ value: v || {} })
+      }
+    },
+        },
   '/optional/[[slug]]': {
           paramsValidation: {
         '~standard': {

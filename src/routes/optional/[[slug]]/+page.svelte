@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { pageInfo } from '$lib/auto-skroutes';
 
 	// Test optional parameter handling
-	const { current } = pageInfo('/optional/[[slug]]', $page);
-	
-	$: console.log('Optional slug param:', current.params.slug);
+	const urlInfo = $derived(pageInfo('/optional/[[slug]]', page));
+
+	$inspect(`Optional slug param: ${urlInfo.current.params.slug}`);
 </script>
 
 <h1>Optional Parameter Test</h1>
-<p>Current slug: {current.params.slug || 'undefined'}</p>
-<p>Slug: {current.params.slug || 'none'}</p>
+<p>Current slug: {urlInfo.current.params.slug || 'undefined'}</p>
+<p>Slug: {urlInfo.current.params.slug || 'none'}</p>

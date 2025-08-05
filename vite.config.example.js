@@ -3,11 +3,11 @@ import { defineConfig } from 'vite';
 import { skRoutesPlugin } from 'skroutes/plugin';
 
 export default defineConfig({
-	plugins: [
-		sveltekit(),
-		skRoutesPlugin()
-	],
+	plugins: [sveltekit(), skRoutesPlugin()],
 	define: {
 		// Optional: Define any global constants here
+	},
+	server: {
+		allowedHosts: true
 	}
 });

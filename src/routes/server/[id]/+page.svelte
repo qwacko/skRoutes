@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
-	export let data;
+
+	const { data } = $props();
 
 	const options = ['Horse', 'Donkey', 'Cat', 'Dog'];
 
-	$: urlData = pageInfo('/server/[id]', $page);
+	const urlData = $derived(pageInfo('/server/[id]', page));
 </script>
 
 <div class="page">

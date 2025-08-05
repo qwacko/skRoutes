@@ -1,5 +1,3 @@
-import { serverPageInfo } from '$lib/auto-skroutes-server.js';
-import { skRoutes } from '$lib/skRoutes.js';
 import { z } from 'zod';
 import type { RouteConfigDefinition } from '$lib/route-config-types';
 
@@ -14,16 +12,13 @@ export const _routeConfig = {
 	})
 } satisfies RouteConfigDefinition;
 
-export const load = (data: any) => {
-	const { current: urlData } = serverPageInfo('/server/[id]', data);
-
-	// Test type checking - urlData.params should be typed as { id: string }
-	// and urlData.searchParams should be typed as { data: string }
-	console.log('Param ID (typed):', urlData.params.id);
-	console.log('Search param data (typed):', urlData.searchParams.data);
-
+export const load = ({ params, url }: any) => {
+	// Simple server-side data loading without serverPageInfo for now
 	return {
-		params: urlData.params,
-		searchParams: urlData.searchParams
+		params: { id: params.id },
+		searchParams: {
+			data: url.searchParams.get('data') || '',
+			date: url.searchParams.get('date')
+		}
 	};
 };

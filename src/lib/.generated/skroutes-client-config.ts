@@ -43,6 +43,16 @@ export const clientRouteConfig = {
       }
     },
         },
+  '/error': {
+          paramsValidation: undefined,
+          searchParamsValidation: {
+      '~standard': {
+        version: 1,
+        vendor: 'skroutes',
+        validate: (v: any) => ({ value: v || {} })
+      }
+    },
+        },
   '/optional/[[slug]]': {
           paramsValidation: {
         '~standard': {
@@ -178,13 +188,14 @@ export const clientRouteConfig = {
 } as const;
 
 // Export route keys for type checking
-export type RouteKeys = '/[id]' | '/' | '/api/users/[id]' | '/optional/[[slug]]' | '/products/[id]' | '/server/[id]' | '/store/[id]' | '/type-test/[id]' | '/users/[id]';
+export type RouteKeys = '/[id]' | '/' | '/api/users/[id]' | '/error' | '/optional/[[slug]]' | '/products/[id]' | '/server/[id]' | '/store/[id]' | '/type-test/[id]' | '/users/[id]';
 
 // Export type mapping for schema inference
 export type RouteTypeMap = {
   '/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig0.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig0.searchParamsValidation> };
   '/': { params: Record<string, string>; searchParams: Record<string, unknown> };
   '/api/users/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
+  '/error': { params: Record<string, string>; searchParams: Record<string, unknown> };
   '/optional/[[slug]]': { params: { slug?: string }; searchParams: Record<string, unknown> };
   '/products/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
   '/server/[id]': { params: { id: string }; searchParams: Record<string, unknown> };

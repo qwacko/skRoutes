@@ -1,4 +1,3 @@
-import { serverPageInfo } from '$lib/auto-skroutes-server.js';
 import type { RouteConfigDefinition } from '$lib/route-config-types';
 import { z } from 'zod';
 
@@ -15,16 +14,12 @@ export const _routeConfig = {
 	})
 } satisfies RouteConfigDefinition;
 
-export const load = (data: any) => {
-	const { current: urlData } = serverPageInfo('/users/[id]', data);
-
-	// urlData.params is now typed as { id: string } with UUID validation and custom error handling
-	// urlData.searchParams is typed as { tab?: 'profile' | 'settings' | 'billing', page: number, sort: 'name' | 'date' | 'activity' }
-
+export const load = ({ params, url }: any) => {
+	// Simple server-side data loading without serverPageInfo for now
 	return {
-		user: { id: urlData.params.id }, // Mock user data
-		activeTab: urlData.searchParams.tab || 'profile',
-		currentPage: urlData.searchParams.page,
-		sortBy: urlData.searchParams.sort
+		user: { id: params.id }, // Mock user data
+		activeTab: url.searchParams.get('tab') || 'profile',
+		currentPage: parseInt(url.searchParams.get('page') || '1'),
+		sortBy: url.searchParams.get('sort') || 'name'
 	};
 };
