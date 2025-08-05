@@ -1,20 +1,11 @@
 <script lang="ts">
 	import { pageInfo, urlGenerator } from '$lib/auto-skroutes';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { browser } from '$app/environment';
 
 	const { data } = $props();
 
-	// Reactive state management with debounced URL updates
-	const urlInfo = $derived(
-		pageInfo(
-			'/users/[id]',
-			page,
-			500, // 500ms debounce delay
-			(newUrl) => (browser ? goto(newUrl) : undefined) // auto-navigation
-		)
-	);
+	// Reactive state management with URL updates
+	const urlInfo = $derived(pageInfo('/users/[id]', page));
 
 	const tabs = ['profile', 'settings', 'billing'] as const;
 	const sortOptions = ['name', 'date', 'activity'] as const;

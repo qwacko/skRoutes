@@ -5,14 +5,7 @@
 	import { browser } from '$app/environment';
 
 	// Basic route with simple string validation
-	const urlInfo = $derived(
-		pageInfo(
-			'/[id]',
-			page,
-			200, // Fast updates for demo
-			(newUrl) => (browser ? goto(newUrl) : undefined)
-		)
-	);
+	const urlInfo = $derived(pageInfo('/[id]', page));
 
 	const demoItems = [
 		{ id: 'horse', name: 'Horse', emoji: '🐴', description: 'Majestic and strong' },
@@ -108,7 +101,11 @@ searchParamsValidation: z.object(&#123;
 
 		<div class="items-grid">
 			{#each demoItems as item}
-				{@const itemUrl = urlInfo.updateParams({ params: { id: item.id } })}
+				{@const itemUrl = urlGenerator({
+					address: '/[id]',
+					paramsValue: { id: item.id },
+					searchParamsValue: urlInfo.current.searchParams
+				})}
 				<a
 					href={itemUrl.url}
 					class="item-card"

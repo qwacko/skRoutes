@@ -6,15 +6,8 @@
 
 	export const data = undefined; // Unused but required by SvelteKit
 
-	// Reactive state management with debounced URL updates
-	const { current, updateParams } = $derived(
-		pageInfo(
-			'/products/[id]',
-			page,
-			300, // 300ms debounce delay for faster updates
-			(newUrl) => (browser ? goto(newUrl) : undefined)
-		)
-	);
+	// Reactive state management with URL updates
+	const { current, updateParams } = $derived(pageInfo('/products/[id]', page));
 
 	const colors = ['red', 'blue', 'green', 'black', 'white'] as const;
 	const sizes = ['S', 'M', 'L', 'XL'] as const;

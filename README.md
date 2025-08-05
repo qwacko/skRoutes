@@ -31,23 +31,23 @@ import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
 export const { urlGenerator, pageInfo } = skRoutes({
-  config: {
-    '/users/[id]': {
-      paramsValidation: z.object({ 
-        id: z.string().uuid() 
-      }),
-      searchParamsValidation: z.object({ 
-        tab: z.enum(['profile', 'settings']).optional(),
-        page: z.coerce.number().positive().optional()
-      })
-    },
-    '/products/[slug]': {
-      paramsValidation: z.object({
-        slug: z.string().min(1)
-      })
-    }
-  },
-  errorURL: '/error'
+	config: {
+		'/users/[id]': {
+			paramsValidation: z.object({
+				id: z.string().uuid()
+			}),
+			searchParamsValidation: z.object({
+				tab: z.enum(['profile', 'settings']).optional(),
+				page: z.coerce.number().positive().optional()
+			})
+		},
+		'/products/[slug]': {
+			paramsValidation: z.object({
+				slug: z.string().min(1)
+			})
+		}
+	},
+	errorURL: '/error'
 });
 ```
 
@@ -58,9 +58,9 @@ import { urlGenerator } from '$lib/routes';
 
 // Generate a URL with validation - all parameters are strongly typed!
 const userUrl = urlGenerator({
-  address: '/users/[id]',           // ✅ TypeScript validates this route exists
-  paramsValue: { id: 'user123' },   // ✅ TypeScript knows id: string is required
-  searchParamsValue: { tab: 'profile', page: 1 } // ✅ TypeScript validates tab and page types
+	address: '/users/[id]', // ✅ TypeScript validates this route exists
+	paramsValue: { id: 'user123' }, // ✅ TypeScript knows id: string is required
+	searchParamsValue: { tab: 'profile', page: 1 } // ✅ TypeScript validates tab and page types
 });
 
 console.log(userUrl.url); // '/users/user123?tab=profile&page=1'
@@ -86,66 +86,63 @@ import { skRoutesServer } from 'skroutes/server';
 import { z } from 'zod';
 
 const { serverPageInfo } = skRoutesServer({
-  config: {
-    '/users/[id]': {
-      paramsValidation: z.object({ id: z.string().uuid() }),
-      searchParamsValidation: z.object({ 
-        tab: z.enum(['profile', 'settings']).optional() 
-      })
-    }
-  },
-  errorURL: '/error'
+	config: {
+		'/users/[id]': {
+			paramsValidation: z.object({ id: z.string().uuid() }),
+			searchParamsValidation: z.object({
+				tab: z.enum(['profile', 'settings']).optional()
+			})
+		}
+	},
+	errorURL: '/error'
 });
 
 export const load = (data) => {
-  const { current } = serverPageInfo('/users/[id]', data);
-  
-  // current.params is typed as { id: string } with UUID validation
-  // current.searchParams is typed with your schema
-  
-  return {
-    user: getUserById(current.params.id),
-    activeTab: current.searchParams?.tab || 'profile'
-  };
+	const { current } = serverPageInfo('/users/[id]', data);
+
+	// current.params is typed as { id: string } with UUID validation
+	// current.searchParams is typed with your schema
+
+	return {
+		user: getUserById(current.params.id),
+		activeTab: current.searchParams?.tab || 'profile'
+	};
 };
 ```
 
 ```svelte
 <!-- src/routes/users/[id]/+page.svelte -->
 <script lang="ts">
-  import { pageInfo } from '$lib/routes';
-  import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
-  import { browser } from '$app/environment';
+	import { pageInfo } from '$lib/routes';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 
-  const { current, updateParams } = pageInfo(
-    '/users/[id]', 
-    $page,
-    500, // debounce delay
-    (newUrl) => browser ? goto(newUrl) : undefined // auto-navigation
-  );
-  
-  const tabs = ['profile', 'settings'] as const;
-  
-  function switchTab(tab: string) {
-    updateParams({ searchParams: { tab } });
-  }
+	const { current, updateParams } = pageInfo(
+		'/users/[id]',
+		page,
+		500, // debounce delay
+		(newUrl) => (browser ? goto(newUrl) : undefined) // auto-navigation
+	);
+
+	const tabs = ['profile', 'settings'] as const;
+
+	function switchTab(tab: string) {
+		updateParams({ searchParams: { tab } });
+	}
 </script>
 
 <div class="page">
-  <h1>User: {current.params.id}</h1>
-  <p>Current Tab: {current.searchParams?.tab || 'profile'}</p>
-  
-  <div class="tabs">
-    {#each tabs as tab}
-      <button 
-        on:click={() => switchTab(tab)}
-        class:active={current.searchParams?.tab === tab}
-      >
-        {tab}
-      </button>
-    {/each}
-  </div>
+	<h1>User: {current.params.id}</h1>
+	<p>Current Tab: {current.searchParams?.tab || 'profile'}</p>
+
+	<div class="tabs">
+		{#each tabs as tab}
+			<button on:click={() => switchTab(tab)} class:active={current.searchParams?.tab === tab}>
+				{tab}
+			</button>
+		{/each}
+	</div>
 </div>
 ```
 
@@ -160,13 +157,13 @@ import { defineConfig } from 'vite';
 import { skRoutesPlugin } from 'skroutes/plugin';
 
 export default defineConfig({
-  plugins: [
-    sveltekit(),
-    skRoutesPlugin({
-      imports: ["import { z } from 'zod';"],
-      errorURL: '/error'
-    })
-  ]
+	plugins: [
+		sveltekit(),
+		skRoutesPlugin({
+			imports: ["import { z } from 'zod';"],
+			errorURL: '/error'
+		})
+	]
 });
 ```
 
@@ -178,8 +175,8 @@ import { urlGenerator, pageInfo } from '$lib/auto-skroutes';
 
 // All your routes are automatically typed and available!
 const userUrl = urlGenerator({
-  address: '/users/[id]', // ✅ Auto-completed and type-checked
-  paramsValue: { id: 'user123' }
+	address: '/users/[id]', // ✅ Auto-completed and type-checked
+	paramsValue: { id: 'user123' }
 });
 ```
 
@@ -197,28 +194,28 @@ import { z } from 'zod';
 
 // Client-side routes
 export const { urlGenerator, pageInfo } = skRoutes({
-  config: {
-    '/users/[id]': {
-      paramsValidation: z.object({ id: z.string().uuid() }),
-      searchParamsValidation: z.object({ 
-        tab: z.enum(['profile', 'settings']).optional() 
-      })
-    }
-  },
-  errorURL: '/error'
+	config: {
+		'/users/[id]': {
+			paramsValidation: z.object({ id: z.string().uuid() }),
+			searchParamsValidation: z.object({
+				tab: z.enum(['profile', 'settings']).optional()
+			})
+		}
+	},
+	errorURL: '/error'
 });
 
 // Server-side routes (separate import)
 export const { serverPageInfo } = skRoutesServer({
-  config: {
-    '/users/[id]': {
-      paramsValidation: z.object({ id: z.string().uuid() }),
-      searchParamsValidation: z.object({ 
-        tab: z.enum(['profile', 'settings']).optional() 
-      })
-    }
-  },
-  errorURL: '/error'
+	config: {
+		'/users/[id]': {
+			paramsValidation: z.object({ id: z.string().uuid() }),
+			searchParamsValidation: z.object({
+				tab: z.enum(['profile', 'settings']).optional()
+			})
+		}
+	},
+	errorURL: '/error'
 });
 ```
 
@@ -228,12 +225,12 @@ When validation fails, skRoutes redirects to your configured `errorURL`:
 
 ```typescript
 const result = urlGenerator({
-  address: '/users/[id]',
-  paramsValue: { id: 'invalid-uuid' }
+	address: '/users/[id]',
+	paramsValue: { id: 'invalid-uuid' }
 });
 
 if (result.error) {
-  console.log(result.url); // '/error?message=Error+generating+URL'
+	console.log(result.url); // '/error?message=Error+generating+URL'
 }
 ```
 
@@ -256,12 +253,12 @@ const arkSchema = type({ id: 'string' });
 
 // Use any of these in your route config
 export const routes = skRoutes({
-  config: {
-    '/users/[id]': {
-      paramsValidation: zodSchema, // or valibotSchema, or arkSchema
-    }
-  },
-  errorURL: '/error'
+	config: {
+		'/users/[id]': {
+			paramsValidation: zodSchema // or valibotSchema, or arkSchema
+		}
+	},
+	errorURL: '/error'
 });
 ```
 
@@ -272,10 +269,12 @@ export const routes = skRoutes({
 Creates a route configuration with type-safe utilities.
 
 **Options:**
+
 - `config`: Object mapping route patterns to validation schemas
 - `errorURL`: URL to redirect to on validation errors
 
 **Returns:**
+
 - `urlGenerator`: Function to generate validated URLs
 - `pageInfo`: Client-side route information utility with optional debounced updates
 
@@ -283,10 +282,10 @@ Creates a route configuration with type-safe utilities.
 
 ```typescript
 interface RouteConfig {
-  [routePattern: string]: {
-    paramsValidation?: StandardSchemaV1<unknown, unknown>;
-    searchParamsValidation?: StandardSchemaV1<unknown, unknown>;
-  };
+	[routePattern: string]: {
+		paramsValidation?: StandardSchemaV1<unknown, unknown>;
+		searchParamsValidation?: StandardSchemaV1<unknown, unknown>;
+	};
 }
 ```
 
@@ -301,13 +300,14 @@ urlGenerator({
 ```
 
 **Returns:**
+
 ```typescript
 {
-  address: string;
-  url: string;
-  error: boolean;
-  params: Record<string, unknown>;     // Never undefined
-  searchParams: Record<string, unknown>; // Never undefined
+	address: string;
+	url: string;
+	error: boolean;
+	params: Record<string, unknown>; // Never undefined
+	searchParams: Record<string, unknown>; // Never undefined
 }
 ```
 
@@ -323,16 +323,17 @@ pageInfo(
 ```
 
 **Returns:**
+
 ```typescript
 {
-  current: {
-    params: Record<string, unknown>;     // Current validated params
-    searchParams: Record<string, unknown>; // Current validated search params
-  };
-  updateParams: (updates: {
-    params?: Partial<ParamsType>;
-    searchParams?: Partial<SearchParamsType>;
-  }) => UrlGeneratorResult;
+	current: {
+		params: Record<string, unknown>; // Current validated params
+		searchParams: Record<string, unknown>; // Current validated search params
+	}
+	updateParams: (updates: {
+		params?: Partial<ParamsType>;
+		searchParams?: Partial<SearchParamsType>;
+	}) => UrlGeneratorResult;
 }
 ```
 
@@ -341,15 +342,19 @@ pageInfo(
 ### From v1 to v2
 
 **Major Changes:**
+
 1. **Standard Schema**: No more `.parse` - pass schemas directly
 2. **Svelte 5 Support**: `pageInfo` now supports runes and optional debounced updates
 3. **Simplified API**: Removed `pageInfoStore` - use `pageInfo` with callbacks instead
 4. **Server Separation**: `serverPageInfo` moved to separate `skroutes/server` import
 
 **v1 (Old):**
+
 ```typescript
 // Old validation
-{ paramsValidation: z.object({ id: z.string() }).parse }
+{
+	paramsValidation: z.object({ id: z.string() }).parse;
+}
 
 // Old store usage
 const store = pageInfoStore({ routeId, pageInfo: page, onUpdate: goto });
@@ -357,9 +362,12 @@ $store.searchParams = { tab: 'profile' };
 ```
 
 **v2 (New):**
+
 ```typescript
 // New validation
-{ paramsValidation: z.object({ id: z.string() }) }
+{
+	paramsValidation: z.object({ id: z.string() });
+}
 
 // New pageInfo usage
 const { current, updateParams } = pageInfo(routeId, $page, 500, goto);
