@@ -5,6 +5,7 @@ export const _routeConfig = {
 	paramsValidation: z.object({ id: z.string().min(1) }),
 	searchParamsValidation: z.object({
 		tab: z.enum(['profile', 'settings']).optional(),
-		page: z.coerce.number().positive().optional()
+		page: z.coerce.number().positive().optional(),
+		text: z.string().optional()
 	})
 } satisfies RouteConfigDefinition;

@@ -5,7 +5,7 @@
 	const { data } = $props();
 
 	// Reactive state management with URL updates
-	const urlInfo = $derived(pageInfo('/users/[id]', page));
+	const urlInfo = pageInfo('/users/[id]', page);
 
 	const tabs = ['profile', 'settings', 'billing'] as const;
 	const sortOptions = ['name', 'date', 'activity'] as const;

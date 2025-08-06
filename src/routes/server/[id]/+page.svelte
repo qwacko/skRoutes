@@ -7,14 +7,19 @@
 	const { data } = $props();
 
 	// Server-side processing demo with required search parameters
-	const { current, updateParams } = $derived(pageInfo('/server/[id]', page));
+	const { current, updateParams } = pageInfo('/server/[id]', page);
 
 	const demoServers = [
 		{ id: 'web-server', name: 'Web Server', emoji: '🌐', description: 'HTTP/HTTPS web server' },
 		{ id: 'database', name: 'Database', emoji: '🗄️', description: 'SQL database server' },
 		{ id: 'cache-server', name: 'Cache Server', emoji: '⚡', description: 'Redis cache server' },
 		{ id: 'api-gateway', name: 'API Gateway', emoji: '🚪', description: 'API routing gateway' },
-		{ id: 'load-balancer', name: 'Load Balancer', emoji: '⚖️', description: 'Traffic distribution' },
+		{
+			id: 'load-balancer',
+			name: 'Load Balancer',
+			emoji: '⚖️',
+			description: 'Traffic distribution'
+		},
 		{ id: 'file-server', name: 'File Server', emoji: '📁', description: 'Static file serving' }
 	];
 
@@ -28,12 +33,14 @@
 		updateParams({ searchParams: {} });
 	}
 
-	const currentServer = $derived(demoServers.find(server => server.id === current.params.id) || {
-		id: current.params.id,
-		name: 'Unknown Server',
-		emoji: '❓',
-		description: 'Server not found'
-	});
+	const currentServer = $derived(
+		demoServers.find((server) => server.id === current.params.id) || {
+			id: current.params.id,
+			name: 'Unknown Server',
+			emoji: '❓',
+			description: 'Server not found'
+		}
+	);
 
 	const currentData = $derived(current.searchParams.data || '');
 </script>
@@ -48,7 +55,7 @@
 				<p class="server-description">{currentServer.description}</p>
 			</div>
 		</div>
-		
+
 		<div class="server-status">
 			<h3>🔧 Server Processing</h3>
 			<div class="status-display">
@@ -63,17 +70,19 @@
 	<section class="demo-section">
 		<h2>🖥️ Server-Side Processing Demo</h2>
 		<p>This route demonstrates server-side validation with required search parameters:</p>
-		
+
 		<div class="config-display">
 			<div class="code-block">
-				<pre><code>// Server route configuration
+				<pre><code
+						>// Server route configuration
 paramsValidation: z.object(&#123;
   id: z.string()
 &#125;),
 searchParamsValidation: z.object(&#123;
   data: z.string(),
   date: z.date().optional()
-&#125;)</code></pre>
+&#125;)</code
+					></pre>
 			</div>
 		</div>
 	</section>
@@ -81,7 +90,7 @@ searchParamsValidation: z.object(&#123;
 	<section class="demo-section">
 		<h2>🖥️ Server Navigation</h2>
 		<p>Switch between different server types:</p>
-		
+
 		<div class="servers-grid">
 			{#each demoServers as server}
 				{@const serverUrl = urlGenerator({
@@ -89,11 +98,7 @@ searchParamsValidation: z.object(&#123;
 					paramsValue: { id: server.id },
 					searchParamsValue: current.searchParams
 				})}
-				<a 
-					href={serverUrl.url} 
-					class="server-card"
-					class:current={current.params.id === server.id}
-				>
+				<a href={serverUrl.url} class="server-card" class:current={current.params.id === server.id}>
 					<span class="server-emoji-large">{server.emoji}</span>
 					<h3>{server.name}</h3>
 					<p>{server.description}</p>
@@ -108,13 +113,13 @@ searchParamsValidation: z.object(&#123;
 	<section class="demo-section">
 		<h2>📊 Data Processing</h2>
 		<p>Select the type of data to process (required parameter):</p>
-		
+
 		<div class="data-controls">
 			<div class="control-group">
 				<h3>Data Type</h3>
 				<div class="data-buttons">
 					{#each dataTypes as dataType}
-						<button 
+						<button
 							onclick={() => updateData(dataType)}
 							class="data-button"
 							class:active={currentData === dataType}
@@ -123,9 +128,7 @@ searchParamsValidation: z.object(&#123;
 						</button>
 					{/each}
 				</div>
-				<button onclick={clearData} class="clear-button">
-					Clear Data
-				</button>
+				<button onclick={clearData} class="clear-button"> Clear Data </button>
 			</div>
 		</div>
 	</section>
@@ -276,9 +279,15 @@ searchParamsValidation: z.object(&#123;
 	}
 
 	@keyframes pulse {
-		0% { opacity: 1; }
-		50% { opacity: 0.5; }
-		100% { opacity: 1; }
+		0% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
+		100% {
+			opacity: 1;
+		}
 	}
 
 	.demo-section {

@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 
 	// Basic route with simple string validation
-	const urlInfo = $derived(pageInfo('/[id]', page));
+	const urlInfo = pageInfo('/[id]', page, {});
 
 	const demoItems = [
 		{ id: 'horse', name: 'Horse', emoji: '🐴', description: 'Majestic and strong' },
@@ -96,6 +96,11 @@ searchParamsValidation: z.object(&#123;
 
 	<section class="demo-section">
 		<h2>🐾 Item Navigation</h2>
+		<input
+			type="text"
+			bind:value={urlInfo.current.searchParams.text}
+			placeholder="Filter items..."
+		/>
 		<p>Click any item to see the URL update with validation:</p>
 
 		<div class="items-grid">

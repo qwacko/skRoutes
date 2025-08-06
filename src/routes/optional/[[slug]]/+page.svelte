@@ -3,7 +3,7 @@
 	import { pageInfo } from '$lib/auto-skroutes.svelte';
 
 	// Test optional parameter handling
-	const urlInfo = $derived(pageInfo('/optional/[[slug]]', page));
+	const urlInfo = pageInfo('/optional/[[slug]]', page);
 
 	$inspect(`Optional slug param: ${urlInfo.current.params.slug}`);
 </script>
