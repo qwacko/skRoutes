@@ -1,9 +1,26 @@
 <script lang="ts">
-	import { testRune } from './testRune.svelte';
+	import { throttledSync } from '$lib/helpers.svelte';
 
-	const { state } = testRune();
+	let states = $state({
+		nested: {
+			value: 'Initial Value'
+		}
+	});
+
+	const derivedState = $derived(states);
+
+	const downstreamState = throttledSync({
+		getter: () => derivedState,
+		setter: (val) => (states = val),
+		throttleTime: 1000
+	});
 </script>
 
-{state.nested.value}
-
-<input type="text" bind:value={state.nested.value} />
+{states.nested.value}
+Upstream
+<input type="text" bind:value={states.nested.value} />
+Downstream
+<input type="text" bind:value={downstreamState.state.nested.value} />
+<button onclick={() => downstreamState.immediateUpdate({ nested: { value: 'Immediate Update' } })}>
+	Immediate Update
+</button>

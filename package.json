@@ -59,6 +59,7 @@
 	"dependencies": {
 		"@standard-schema/spec": "^1.0.0",
 		"@types/lodash-es": "^4.17.12",
-		"lodash-es": "^4.17.21"
+		"lodash-es": "^4.17.21",
+		"runed": "^0.31.1"
 	}
 }

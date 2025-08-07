@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 
 	// Basic route with simple string validation
-	const urlInfo = pageInfo('/[id]', page, {});
+	const urlInfo = pageInfo('/[id]', () => page, { updateDelay: 1000 });
 
 	const demoItems = [
 		{ id: 'horse', name: 'Horse', emoji: '🐴', description: 'Majestic and strong' },
@@ -17,11 +17,6 @@
 	// Search parameters for this route (from the route config)
 	const tabs = ['profile', 'settings'] as const;
 	const pages = [1, 2, 3, 4, 5];
-
-	function switchTab(tab: (typeof tabs)[number]) {
-		console.log('Switching tab to:', tab);
-		urlInfo.updateParams({ searchParams: { tab } });
-	}
 
 	function changePage(pageNum: number) {
 		urlInfo.updateParams({ searchParams: { page: pageNum } });
@@ -101,19 +96,16 @@ searchParamsValidation: z.object(&#123;
 			bind:value={urlInfo.current.searchParams.text}
 			placeholder="Filter items..."
 		/>
+		{urlInfo.current.searchParams.text}
 		<p>Click any item to see the URL update with validation:</p>
 
 		<div class="items-grid">
 			{#each demoItems as item}
-				{@const itemUrl = urlGenerator({
-					address: '/[id]',
-					paramsValue: { id: item.id },
-					searchParamsValue: urlInfo.current.searchParams
-				})}
 				<a
-					href={itemUrl.url}
+					href={urlInfo.updateParamsURLGenerator({ params: { id: item.id } }).url}
 					class="item-card"
 					class:current={urlInfo.current.params.id === item.id}
+					data-sveltekit-noscroll
 				>
 					<span class="item-emoji-large">{item.emoji}</span>
 					<h3>{item.name}</h3>

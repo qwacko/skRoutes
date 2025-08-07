@@ -141,6 +141,16 @@ export const clientRouteConfig = {
       }
     },
         },
+  '/test': {
+          paramsValidation: undefined,
+          searchParamsValidation: {
+      '~standard': {
+        version: 1,
+        vendor: 'skroutes',
+        validate: (v: any) => ({ value: v || {} })
+      }
+    },
+        },
   '/type-test/[id]': {
           paramsValidation: {
         '~standard': {
@@ -188,7 +198,7 @@ export const clientRouteConfig = {
 } as const;
 
 // Export route keys for type checking
-export type RouteKeys = '/[id]' | '/' | '/api/users/[id]' | '/error' | '/optional/[[slug]]' | '/products/[id]' | '/server/[id]' | '/store/[id]' | '/type-test/[id]' | '/users/[id]';
+export type RouteKeys = '/[id]' | '/' | '/api/users/[id]' | '/error' | '/optional/[[slug]]' | '/products/[id]' | '/server/[id]' | '/store/[id]' | '/test' | '/type-test/[id]' | '/users/[id]';
 
 // Export type mapping for schema inference
 export type RouteTypeMap = {
@@ -200,6 +210,7 @@ export type RouteTypeMap = {
   '/products/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
   '/server/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
   '/store/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
+  '/test': { params: Record<string, string>; searchParams: Record<string, unknown> };
   '/type-test/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
   '/users/[id]': { params: { id: string }; searchParams: Record<string, unknown> }
 };

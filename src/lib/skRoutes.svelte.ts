@@ -1,4 +1,5 @@
 import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 import { untrack } from 'svelte';
 import {
 	getUrlParams,
@@ -12,6 +13,7 @@ import {
 	type ValidatedParamsType,
 	type ValidatedSearchParamsType
 } from './helpers.js';
+import { throttledSync } from './helpers.svelte.js';
 import { isEqual } from 'lodash-es';
 
 export type { RouteConfig, UrlGeneratorInput, UrlGeneratorResult };
@@ -117,95 +119,74 @@ export function skRoutes<Config extends RouteConfig>({
 	 */
 	const pageInfo = <Address extends keyof Config>(
 		routeId: Address,
-		pageInfo: { params: Record<string, string>; url: { search: string } },
+		pageInfo: () => { params: Record<string, string>; url: { search: string } },
 		config: {
 			updateDelay?: number;
 			onUpdate?: (newUrl: string) => unknown;
 			updateAction?: RouteUpdateAction;
+			debug?: boolean;
 		} = {}
 	) => {
-		let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
 		const usedUpdateAction = config.updateAction || updateAction;
 
-		// Initialize reactive state from current pageInfo
-		const initialState = urlGenerator({
-			address: routeId,
-			paramsValue: pageInfo.params as ParamsType<Config, Address>,
-			searchParamsValue: getUrlParams(pageInfo.url.search) as SearchParamsType<Config, Address>
-		});
+		// Create a combined state object for both params and searchParams
+		type CombinedState = {
+			params: ValidatedParamsType<Config, Address>;
+			searchParams: ValidatedSearchParamsType<Config, Address>;
+		};
 
-		// Fully reactive state that can be bound to
-		let currentParams = $state<ValidatedParamsType<Config, Address>>(initialState.params);
-		let currentSearchParams = $state<ValidatedSearchParamsType<Config, Address>>(initialState.searchParams);
-
-		// Track previous values to detect changes
-		let previousParams = $state<ValidatedParamsType<Config, Address>>(initialState.params);
-		let previousSearchParams = $state<ValidatedSearchParamsType<Config, Address>>(initialState.searchParams);
-
-		// Sync with external pageInfo changes
-		$effect(() => {
-			const currentFromPage = urlGenerator({
+		let derivedState = $derived.by(() => {
+			const combinedState = urlGenerator({
 				address: routeId,
-				paramsValue: pageInfo.params as ParamsType<Config, Address>,
-				searchParamsValue: getUrlParams(pageInfo.url.search) as SearchParamsType<Config, Address>
+				paramsValue: pageInfo().params as ParamsType<Config, Address>,
+				searchParamsValue: getUrlParams(pageInfo().url.search) as SearchParamsType<Config, Address>
 			});
-			
-			// Update reactive state when pageInfo changes externally (but not from our own updates)
-			if (!isEqual(currentParams, currentFromPage.params) && isEqual(currentParams, previousParams)) {
-				currentParams = currentFromPage.params;
-				previousParams = currentFromPage.params;
-			}
-			if (!isEqual(currentSearchParams, currentFromPage.searchParams) && isEqual(currentSearchParams, previousSearchParams)) {
-				currentSearchParams = currentFromPage.searchParams;
-				previousSearchParams = currentFromPage.searchParams;
-			}
+			return {
+				params: combinedState.params as ValidatedParamsType<Config, Address>,
+				searchParams: combinedState.searchParams as ValidatedSearchParamsType<Config, Address>
+			};
 		});
 
-		// Watch for changes in reactive state and trigger URL updates
-		$effect(() => {
-			// Check if params or searchParams have changed from user interaction/binding
-			if (!isEqual(currentParams, previousParams) || !isEqual(currentSearchParams, previousSearchParams)) {
-				untrack(() => {
-					// Generate new URL with updated state
-					const result = urlGenerator({
-						address: routeId,
-						paramsValue: currentParams as ParamsType<Config, Address>,
-						searchParamsValue: currentSearchParams as SearchParamsType<Config, Address>
-					});
+		// Use throttledSync to handle the bi-directional synchronization
+		const syncedState = throttledSync({
+			debug: config.debug,
+			getter: () => derivedState,
+			setter: (newState: CombinedState) => {
+				if (!browser) return;
 
-					// Update previous values
-					previousParams = currentParams;
-					previousSearchParams = currentSearchParams;
-
-					// Trigger URL update with delay
-					if (timeoutId) {
-						clearTimeout(timeoutId);
-					}
-					timeoutId = setTimeout(
-						() => {
-							if (config.onUpdate) {
-								config.onUpdate(result.url);
-							}
-							if (usedUpdateAction === 'goto') {
-								goto(result.url, { noScroll: true, keepFocus: true });
-							}
-						},
-						config.updateDelay ? config.updateDelay * 1000 : 0
-					);
+				const result = urlGenerator({
+					address: routeId,
+					paramsValue: newState.params as ParamsType<Config, Address>,
+					searchParamsValue: newState.searchParams as SearchParamsType<Config, Address>
 				});
-			}
+
+				if (config.debug) {
+					console.log('URL update triggered:', {
+						url: result.url,
+						updateAction: usedUpdateAction,
+						params: newState.params,
+						searchParams: newState.searchParams
+					});
+				}
+
+				if (config.onUpdate) {
+					config.debug && console.log('Calling onUpdate with URL:', result.url);
+					config.onUpdate(result.url);
+				}
+				if (usedUpdateAction === 'goto') {
+					config.debug && console.log('Navigating to:', result.url);
+					goto(result.url, { noScroll: true, keepFocus: true });
+				}
+			},
+			throttleTime: config.updateDelay
 		});
 
-		const updateParamsHelper = createUpdateParams(
-			routeId as string,
-			pageInfo.params,
-			pageInfo.url.search,
-			urlGenerator
+		const updateParamsHelper = $derived(
+			createUpdateParams(routeId as string, pageInfo().params, pageInfo().url.search, urlGenerator)
 		);
 
 		/**
-		 * Updates route parameters and returns the new URL without triggering navigation.
+		 * Updates returns the new URL considering the updated parameters supplied.
 		 *
 		 * This function is useful when you need to generate URLs for links or other purposes
 		 * without updating the current route state or triggering navigation.
@@ -251,9 +232,11 @@ export function skRoutes<Config extends RouteConfig>({
 				searchParams: newSearchParams as Partial<Record<string, unknown>>
 			});
 
-			// Update reactive state - this will trigger the $effect above
-			currentParams = result.params as ValidatedParamsType<Config, Address>;
-			currentSearchParams = result.searchParams as ValidatedSearchParamsType<Config, Address>;
+			// Update the synced state - this will trigger the throttled URL update
+			syncedState.state = {
+				params: result.params as ValidatedParamsType<Config, Address>,
+				searchParams: result.searchParams as ValidatedSearchParamsType<Config, Address>
+			};
 
 			return result;
 		};
@@ -265,16 +248,16 @@ export function skRoutes<Config extends RouteConfig>({
 			 */
 			current: {
 				get params() {
-					return currentParams;
+					return syncedState.state.params;
 				},
 				set params(value: ValidatedParamsType<Config, Address>) {
-					currentParams = value;
+					syncedState.state.params = value;
 				},
 				get searchParams() {
-					return currentSearchParams;
+					return syncedState.state.searchParams;
 				},
 				set searchParams(value: ValidatedSearchParamsType<Config, Address>) {
-					currentSearchParams = value;
+					syncedState.state.searchParams = value;
 				}
 			},
 			updateParams,
