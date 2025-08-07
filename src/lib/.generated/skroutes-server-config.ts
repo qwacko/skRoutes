@@ -102,6 +102,27 @@ export const serverRouteConfig = {
         }
 } as const;
 
+// Export complete route keys for type checking (server has full visibility)
+export type ServerRouteKeys = '/[id]' | '/api/users/[id]' | '/products/[id]' | '/server/[id]' | '/type-test/[id]' | '/users/[id]' | '/' | '/error' | '/optional/[[slug]]' | '/store/[id]';
+
+// Export complete type mapping for schema inference (server has full visibility)
+export type ServerRouteTypeMap = {
+  '/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig0.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig0.searchParamsValidation> };
+  '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig1.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig1.searchParamsValidation> };
+  '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig2.searchParamsValidation> };
+  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig3.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
+  '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig4.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig4.searchParamsValidation> };
+  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig5.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig5.searchParamsValidation> };
+  '/': { params: Record<string, string>; searchParams: Record<string, unknown> };
+  '/error': { params: Record<string, string>; searchParams: Record<string, unknown> };
+  '/optional/[[slug]]': { params: { slug?: string }; searchParams: Record<string, unknown> };
+  '/store/[id]': { params: { id: string }; searchParams: Record<string, unknown> }
+};
+
+// Convenience type aliases for accessing route param/search param types
+export type ServerRouteParams<T extends ServerRouteKeys> = ServerRouteTypeMap[T]['params'];
+export type ServerRouteSearchParams<T extends ServerRouteKeys> = ServerRouteTypeMap[T]['searchParams'];
+
 // Export plugin options for reference
 export const pluginOptions = {
   "errorURL": "/error"

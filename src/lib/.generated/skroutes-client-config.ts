@@ -208,8 +208,6 @@ export type RouteTypeMap = {
 export type RouteParams<T extends RouteKeys> = RouteTypeMap[T]['params'];
 export type RouteSearchParams<T extends RouteKeys> = RouteTypeMap[T]['searchParams'];
 
-// Re-export types for convenience
-export type { RouteConfig } from '../skRoutes.js';
 
 // Export plugin options for reference
 export const pluginOptions = {
