@@ -35,24 +35,3 @@ export type RouteConfig<
 	ParamsSchema extends StandardSchemaV1 = StandardSchemaV1,
 	SearchParamsSchema extends StandardSchemaV1 = StandardSchemaV1
 > = RouteConfigDefinition<ParamsSchema, SearchParamsSchema>;
-
-// Error handling result types
-export type RouteErrorResult =
-	| Response
-	| { redirect: string }
-	| { params?: any; searchParams?: any }
-	| void;
-
-// For backwards compatibility - convert old validation functions to new format
-export interface LegacyRouteConfig {
-	paramsValidation?: StandardSchemaV1;
-	searchParamsValidation?: StandardSchemaV1;
-}
-
-// Convert legacy config to new unified format
-export function convertLegacyConfig(legacy: LegacyRouteConfig): RouteConfigDefinition {
-	return {
-		paramsValidation: legacy.paramsValidation,
-		searchParamsValidation: legacy.searchParamsValidation
-	};
-}

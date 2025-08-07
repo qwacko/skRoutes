@@ -1,6 +1,5 @@
 import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
-import { untrack } from 'svelte';
 import {
 	getUrlParams,
 	createUrlGenerator,
@@ -317,7 +316,9 @@ export function skRoutes<Config extends RouteConfig>({
 			updateParams,
 			updateParamsURLGenerator,
 			resetParams,
-			get hasChanges() { return hasChanges; }
+			get hasChanges() {
+				return hasChanges;
+			}
 		};
 	};
 
