@@ -10,3 +10,5 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 core
+# Generated TypeScript declarations from svelte-package
+src/routes/**/*.d.ts
