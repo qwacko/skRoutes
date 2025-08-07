@@ -88,13 +88,14 @@ export function skRoutes<Config extends RouteConfig>({
 	 *
 	 * @template Address - The specific route address from the config
 	 * @param routeId - The route address pattern (must match a key in config)
-	 * @param pageInfo - Current page information from SvelteKit
-	 * @param pageInfo.params - Current route parameters
-	 * @param pageInfo.url - Current URL object with search string
+	 * @param pageInfo - Function that returns current page information from SvelteKit
+	 * @param pageInfo().params - Current route parameters from the URL
+	 * @param pageInfo().url.search - Current URL search string
 	 * @param config - Optional configuration for updates
-	 * @param config.updateDelay - Delay in seconds before URL update (default: 0)
+	 * @param config.updateDelay - Delay in milliseconds before URL update (default: 0)
 	 * @param config.onUpdate - Callback function called when URL updates
 	 * @param config.updateAction - Override default update action for this route
+	 * @param config.debug - Enable debug logging for this route instance
 	 *
 	 * @returns Object with current state and update functions
 	 *
@@ -103,18 +104,27 @@ export function skRoutes<Config extends RouteConfig>({
 	 * // In a +page.svelte file
 	 * export let data;
 	 *
-	 * const route = pageInfo('/users/[id]', data, {
-	 *   updateDelay: 0.5, // 500ms delay
-	 *   onUpdate: (url) => console.log('URL updated:', url)
+	 * const route = pageInfo('/users/[id]', () => data, {
+	 *   updateDelay: 500, // 500ms delay
+	 *   onUpdate: (url) => console.log('URL updated:', url),
+	 *   debug: true // Enable debug logging
 	 * });
 	 *
 	 * // Access current parameters
 	 * console.log(route.current.params.id);
 	 *
-	 * // Update parameters (triggers URL update)
+	 * // Bind to form inputs
+	 * <input bind:value={route.current.searchParams.query} />
+	 *
+	 * // Update parameters programmatically (triggers throttled URL update)
 	 * route.updateParams({
 	 *   searchParams: { tab: 'settings' }
 	 * });
+	 *
+	 * // Check if there are unsaved changes
+	 * {#if route.hasChanges}
+	 *   <button onclick={route.resetParams}>Reset</button>
+	 * {/if}
 	 * ```
 	 */
 	const pageInfo = <Address extends keyof Config>(
@@ -129,12 +139,20 @@ export function skRoutes<Config extends RouteConfig>({
 	) => {
 		const usedUpdateAction = config.updateAction || updateAction;
 
-		// Create a combined state object for both params and searchParams
+		/**
+		 * Combined state type for both route parameters and search parameters.
+		 * This allows treating them as a single reactive unit for synchronization.
+		 */
 		type CombinedState = {
 			params: ValidatedParamsType<Config, Address>;
 			searchParams: ValidatedSearchParamsType<Config, Address>;
 		};
 
+		/**
+		 * Derived state that automatically updates when pageInfo changes.
+		 * This creates the "source of truth" from the current URL state that
+		 * gets synchronized with the internal reactive state.
+		 */
 		let derivedState = $derived.by(() => {
 			const combinedState = urlGenerator({
 				address: routeId,
@@ -147,13 +165,19 @@ export function skRoutes<Config extends RouteConfig>({
 			};
 		});
 
-		// Use throttledSync to handle the bi-directional synchronization
+		/**
+		 * Bi-directional sync between URL state and internal reactive state.
+		 * - derivedState -> syncedState: Updates when URL/pageInfo changes
+		 * - syncedState -> URL: Updates URL when internal state changes (throttled)
+		 */
 		const syncedState = throttledSync({
 			debug: config.debug,
 			getter: () => derivedState,
 			setter: (newState: CombinedState) => {
+				// Only perform URL updates on the client side
 				if (!browser) return;
 
+				// Generate the new URL with validated parameters
 				const result = urlGenerator({
 					address: routeId,
 					paramsValue: newState.params as ParamsType<Config, Address>,
@@ -161,7 +185,7 @@ export function skRoutes<Config extends RouteConfig>({
 				});
 
 				if (config.debug) {
-					console.log('URL update triggered:', {
+					console.log('[pageInfo] URL update triggered:', {
 						url: result.url,
 						updateAction: usedUpdateAction,
 						params: newState.params,
@@ -169,12 +193,15 @@ export function skRoutes<Config extends RouteConfig>({
 					});
 				}
 
+				// Call the user-provided update callback if configured
 				if (config.onUpdate) {
-					config.debug && console.log('Calling onUpdate with URL:', result.url);
+					config.debug && console.log('[pageInfo] Calling onUpdate with URL:', result.url);
 					config.onUpdate(result.url);
 				}
+
+				// Navigate to the new URL if action is 'goto'
 				if (usedUpdateAction === 'goto') {
-					config.debug && console.log('Navigating to:', result.url);
+					config.debug && console.log('[pageInfo] Navigating to:', result.url);
 					goto(result.url, { noScroll: true, keepFocus: true });
 				}
 			},
@@ -241,6 +268,25 @@ export function skRoutes<Config extends RouteConfig>({
 			return result;
 		};
 
+		/**
+		 * Resets parameters to their initial state from the current pageInfo.
+		 * This is useful for clearing any user modifications and returning to URL state.
+		 */
+		const resetParams = () => {
+			if (config.debug) {
+				console.log('[pageInfo] Resetting parameters to initial state');
+			}
+			syncedState.immediateUpdate(derivedState);
+		};
+
+		/**
+		 * Checks if the current internal state differs from the URL state.
+		 * Useful for showing "unsaved changes" indicators.
+		 */
+		const hasChanges = $derived(() => {
+			return !isEqual(syncedState.state, derivedState);
+		});
+
 		return {
 			/**
 			 * Current route state containing validated parameters and search parameters.
@@ -251,17 +297,27 @@ export function skRoutes<Config extends RouteConfig>({
 					return syncedState.state.params;
 				},
 				set params(value: ValidatedParamsType<Config, Address>) {
-					syncedState.state.params = value;
+					// Update the entire state object to ensure reactivity
+					syncedState.state = {
+						...syncedState.state,
+						params: value
+					};
 				},
 				get searchParams() {
 					return syncedState.state.searchParams;
 				},
 				set searchParams(value: ValidatedSearchParamsType<Config, Address>) {
-					syncedState.state.searchParams = value;
+					// Update the entire state object to ensure reactivity
+					syncedState.state = {
+						...syncedState.state,
+						searchParams: value
+					};
 				}
 			},
 			updateParams,
-			updateParamsURLGenerator
+			updateParamsURLGenerator,
+			resetParams,
+			hasChanges
 		};
 	};
 

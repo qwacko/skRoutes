@@ -13,12 +13,17 @@ pnpm add skroutes
 ## Features
 
 - 🔒 **Full Type Safety**: Route parameters and search parameters are fully typed based on your schema configuration
-- 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library
+- 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library  
 - 📝 **Type-safe URL generation** with automatic validation and proper return types
 - 🛠️ **Easy URL manipulation** with strongly typed parameter updates
-- 🎨 **Reactive state management** with debounced URL updates and Svelte 5 runes support
+- 🎨 **Reactive state management** with throttled URL updates and Svelte 5 runes support
+- 🔄 **Bi-directional synchronization**: Changes flow seamlessly between URL state and component state
+- ⚡ **Throttled updates**: Built-in throttling prevents excessive URL changes during rapid state updates
+- 🎯 **Direct binding**: Bind form inputs directly to URL parameters with automatic synchronization
 - 🚦 **TypeScript validation** of route addresses with compile-time checking
-- ⚡ **Generic Type System**: All functions are properly generic and infer types from your route configuration
+- 💾 **Unsaved changes detection**: Track when internal state differs from URL state
+- 🔄 **Reset functionality**: Easily revert changes back to the current URL state
+- 📊 **Debug mode**: Comprehensive logging to understand state synchronization flow
 - 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed!
 
 ## Quick Start
@@ -80,65 +85,67 @@ const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searc
 
 ### 3. Use in SvelteKit Pages
 
-```typescript
-// src/routes/users/[id]/+page.server.ts
-import { skRoutesServer } from 'skroutes/server';
-import { z } from 'zod';
-
-const { serverPageInfo } = skRoutesServer({
-	config: {
-		'/users/[id]': {
-			paramsValidation: z.object({ id: z.string().uuid() }),
-			searchParamsValidation: z.object({
-				tab: z.enum(['profile', 'settings']).optional()
-			})
-		}
-	},
-	errorURL: '/error'
-});
-
-export const load = (data) => {
-	const { current } = serverPageInfo('/users/[id]', data);
-
-	// current.params is typed as { id: string } with UUID validation
-	// current.searchParams is typed with your schema
-
-	return {
-		user: getUserById(current.params.id),
-		activeTab: current.searchParams?.tab || 'profile'
-	};
-};
-```
-
 ```svelte
 <!-- src/routes/users/[id]/+page.svelte -->
 <script lang="ts">
 	import { pageInfo } from '$lib/routes';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { browser } from '$app/environment';
 
-	const { current, updateParams } = pageInfo(
-		'/users/[id]',
-		page,
-		500, // debounce delay
-		(newUrl) => (browser ? goto(newUrl) : undefined) // auto-navigation
-	);
+	export let data; // From your +page.server.ts
+
+	// Create reactive route info with throttled URL updates
+	const route = pageInfo('/users/[id]', () => $page, {
+		updateDelay: 500, // 500ms throttling
+		onUpdate: (url) => console.log('URL updated:', url),
+		debug: false // Enable for debugging
+	});
 
 	const tabs = ['profile', 'settings'] as const;
 
+	// Function to switch tabs
 	function switchTab(tab: string) {
-		updateParams({ searchParams: { tab } });
+		route.updateParams({ searchParams: { tab } });
 	}
+
+	// You can also bind directly to form inputs
+	let searchQuery = $state('');
+	
+	// Bind to route parameters for reactive URL updates
+	$effect(() => {
+		if (searchQuery) {
+			route.current.searchParams = { 
+				...route.current.searchParams, 
+				query: searchQuery 
+			};
+		}
+	});
 </script>
 
 <div class="page">
-	<h1>User: {current.params.id}</h1>
-	<p>Current Tab: {current.searchParams?.tab || 'profile'}</p>
+	<h1>User: {route.current.params.id}</h1>
+	<p>Current Tab: {route.current.searchParams.tab || 'profile'}</p>
+
+	<!-- Show unsaved changes indicator -->
+	{#if route.hasChanges}
+		<div class="unsaved-changes">
+			<p>You have unsaved changes</p>
+			<button onclick={route.resetParams}>Reset</button>
+		</div>
+	{/if}
+
+	<!-- Direct binding to search parameters -->
+	<input 
+		type="text" 
+		bind:value={route.current.searchParams.query}
+		placeholder="Search..."
+	/>
 
 	<div class="tabs">
 		{#each tabs as tab}
-			<button on:click={() => switchTab(tab)} class:active={current.searchParams?.tab === tab}>
+			<button 
+				onclick={() => switchTab(tab)} 
+				class:active={route.current.searchParams.tab === tab}
+			>
 				{tab}
 			</button>
 		{/each}
@@ -182,6 +189,79 @@ const userUrl = urlGenerator({
 
 ## Advanced Usage
 
+### Throttled Synchronization
+
+skRoutes uses a sophisticated bi-directional synchronization system that keeps URL state and component state in perfect sync:
+
+```typescript
+const route = pageInfo('/search', () => $page, {
+	updateDelay: 300, // Throttle URL updates to 300ms
+	debug: true // See synchronization in action
+});
+
+// Changes to internal state are throttled before updating the URL
+route.current.searchParams.query = 'hello';
+route.current.searchParams.filter = 'active';
+// ↑ Both changes are batched and applied after 300ms
+
+// External URL changes (like browser navigation) immediately sync to internal state
+// No throttling on incoming changes - only outgoing URL updates are throttled
+```
+
+**Key Benefits:**
+
+- **Smooth UX**: Rapid typing in search boxes doesn't create browser history spam
+- **Batched Updates**: Multiple parameter changes are combined into single URL updates  
+- **Instant Sync**: External navigation immediately updates component state
+- **Change Detection**: Only real content changes trigger updates (not just object reference changes)
+
+### Direct Binding Patterns
+
+```svelte
+<script>
+	const route = pageInfo('/products', () => $page, {
+		updateDelay: 500,
+		debug: false
+	});
+	
+	// Complex form state that syncs to URL
+	let formData = $state({
+		search: route.current.searchParams.search || '',
+		category: route.current.searchParams.category || 'all',
+		priceRange: [
+			Number(route.current.searchParams.minPrice) || 0,
+			Number(route.current.searchParams.maxPrice) || 1000
+		]
+	});
+	
+	// Sync form changes back to URL (throttled)
+	$effect(() => {
+		route.current.searchParams = {
+			search: formData.search || undefined,
+			category: formData.category !== 'all' ? formData.category : undefined,
+			minPrice: formData.priceRange[0] !== 0 ? formData.priceRange[0].toString() : undefined,
+			maxPrice: formData.priceRange[1] !== 1000 ? formData.priceRange[1].toString() : undefined
+		};
+	});
+</script>
+
+<!-- Form inputs automatically stay in sync with URL -->
+<input bind:value={formData.search} placeholder="Search products..." />
+<select bind:value={formData.category}>
+	<option value="all">All Categories</option>
+	<option value="electronics">Electronics</option>
+	<option value="clothing">Clothing</option>
+</select>
+
+<!-- Show unsaved changes -->
+{#if route.hasChanges}
+	<div class="changes-indicator">
+		<span>Unsaved filters</span>
+		<button onclick={route.resetParams}>Reset</button>
+	</div>
+{/if}
+```
+
 ### Manual Configuration
 
 You can also manually configure routes without the plugin:
@@ -189,33 +269,31 @@ You can also manually configure routes without the plugin:
 ```typescript
 // src/lib/routes.ts
 import { skRoutes } from 'skroutes';
-import { skRoutesServer } from 'skroutes/server';
 import { z } from 'zod';
 
-// Client-side routes
 export const { urlGenerator, pageInfo } = skRoutes({
 	config: {
 		'/users/[id]': {
 			paramsValidation: z.object({ id: z.string().uuid() }),
 			searchParamsValidation: z.object({
-				tab: z.enum(['profile', 'settings']).optional()
+				tab: z.enum(['profile', 'settings']).optional(),
+				search: z.string().optional(),
+				page: z.coerce.number().positive().optional()
 			})
-		}
-	},
-	errorURL: '/error'
-});
-
-// Server-side routes (separate import)
-export const { serverPageInfo } = skRoutesServer({
-	config: {
-		'/users/[id]': {
-			paramsValidation: z.object({ id: z.string().uuid() }),
+		},
+		'/products/[category]': {
+			paramsValidation: z.object({ 
+				category: z.enum(['electronics', 'clothing', 'books'])
+			}),
 			searchParamsValidation: z.object({
-				tab: z.enum(['profile', 'settings']).optional()
+				sort: z.enum(['price', 'name', 'rating']).optional(),
+				minPrice: z.coerce.number().min(0).optional(),
+				maxPrice: z.coerce.number().min(0).optional()
 			})
 		}
 	},
-	errorURL: '/error'
+	errorURL: '/error',
+	updateAction: 'goto' // Default behavior for all pageInfo instances
 });
 ```
 
@@ -316,9 +394,13 @@ urlGenerator({
 ```typescript
 pageInfo(
   routeId: '/users/[id]',           // Route pattern
-  pageData: { params: {...}, url: {...} }, // SvelteKit page data
-  updateDelay?: 1000,               // Optional debounce delay (ms)
-  onUpdate?: (newUrl: string) => void // Optional callback for URL changes
+  pageData: () => ({ params: {...}, url: {...} }), // Function returning SvelteKit page data
+  config?: {                        // Optional configuration
+    updateDelay?: 500,              // Throttle delay in milliseconds (default: 0)
+    onUpdate?: (newUrl: string) => void, // Callback for URL changes
+    updateAction?: 'goto' | 'nil',  // Whether to navigate or just update state
+    debug?: boolean                 // Enable debug logging
+  }
 )
 ```
 
@@ -327,51 +409,79 @@ pageInfo(
 ```typescript
 {
 	current: {
-		params: Record<string, unknown>; // Current validated params
-		searchParams: Record<string, unknown>; // Current validated search params
-	}
+		params: Record<string, unknown>; // Current validated params (reactive)
+		searchParams: Record<string, unknown>; // Current validated search params (reactive)
+	},
 	updateParams: (updates: {
 		params?: Partial<ParamsType>;
 		searchParams?: Partial<SearchParamsType>;
-	}) => UrlGeneratorResult;
+	}) => UrlGeneratorResult,
+	updateParamsURLGenerator: (updates) => UrlGeneratorResult, // Generate URL without navigation
+	resetParams: () => void,          // Reset to current URL state
+	hasChanges: boolean              // True if internal state differs from URL
 }
 ```
 
 ## Migration Guide
 
-### From v1 to v2
+### From Previous Versions
 
 **Major Changes:**
 
-1. **Standard Schema**: No more `.parse` - pass schemas directly
-2. **Svelte 5 Support**: `pageInfo` now supports runes and optional debounced updates
-3. **Simplified API**: Removed `pageInfoStore` - use `pageInfo` with callbacks instead
-4. **Server Separation**: `serverPageInfo` moved to separate `skroutes/server` import
+1. **Function-based pageInfo**: `pageInfo` now takes a function that returns page data for better reactivity
+2. **Configuration Object**: Parameters are now passed as a configuration object instead of positional arguments  
+3. **Bi-directional Sync**: Direct binding to `current.params` and `current.searchParams` with automatic throttling
+4. **New Utilities**: Added `resetParams()`, `hasChanges`, and `updateParamsURLGenerator()`
+5. **Enhanced Debugging**: Comprehensive debug logging with the `debug` option
 
-**v1 (Old):**
+**Old Usage:**
 
 ```typescript
-// Old validation
-{
-	paramsValidation: z.object({ id: z.string() }).parse;
-}
-
-// Old store usage
-const store = pageInfoStore({ routeId, pageInfo: page, onUpdate: goto });
-$store.searchParams = { tab: 'profile' };
+// Old way with positional arguments
+const { current, updateParams } = pageInfo(
+	routeId, 
+	$page, 
+	500, // delay
+	goto // onUpdate callback
+);
 ```
 
-**v2 (New):**
+**New Usage:**
 
 ```typescript
-// New validation
-{
-	paramsValidation: z.object({ id: z.string() });
-}
+// New way with function and configuration object
+const route = pageInfo(routeId, () => $page, {
+	updateDelay: 500,
+	onUpdate: goto,
+	updateAction: 'goto', // or 'nil' for state-only updates
+	debug: true // Enable debugging
+});
 
-// New pageInfo usage
-const { current, updateParams } = pageInfo(routeId, $page, 500, goto);
-updateParams({ searchParams: { tab: 'profile' } });
+// New features available
+console.log(route.hasChanges); // Check for unsaved changes
+route.resetParams(); // Reset to URL state
+
+// Direct binding now works with throttling
+route.current.searchParams = { newValue: 'test' }; // Automatically throttled
+```
+
+**Enhanced Reactive Patterns:**
+
+```typescript
+// You can now bind directly to route parameters
+<input bind:value={route.current.searchParams.query} />
+
+// Or use reactive effects
+$effect(() => {
+	if (someCondition) {
+		route.current.searchParams.filter = 'active';
+	}
+});
+
+// Check for unsaved changes
+{#if route.hasChanges}
+	<button onclick={route.resetParams}>Reset Changes</button>
+{/if}
 ```
 
 ## Contributing
