@@ -1,0 +1,325 @@
+import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
+import { untrack } from 'svelte';
+import {
+	getUrlParams,
+	createUrlGenerator,
+	createUpdateParams,
+	type RouteConfig,
+	type UrlGeneratorInput,
+	type UrlGeneratorResult,
+	type ParamsType,
+	type SearchParamsType,
+	type ValidatedParamsType,
+	type ValidatedSearchParamsType
+} from './helpers.js';
+import { throttledSync } from './helpers.svelte.js';
+import { isEqual } from 'lodash-es';
+
+export type { RouteConfig, UrlGeneratorInput, UrlGeneratorResult };
+
+/**
+ * Defines how route updates should be handled when parameters change.
+ * - 'goto': Navigate to the new URL using SvelteKit's goto function
+ * - 'nil': Update state only without navigation
+ */
+type RouteUpdateAction = 'goto' | 'nil';
+
+/**
+ * Creates a typesafe URL generation and state management system for SvelteKit applications.
+ *
+ * This function provides utilities for generating URLs with validated parameters and managing
+ * route state with automatic URL synchronization. It supports both route parameters and
+ * search parameters with optional validation using Zod or other validation libraries.
+ *
+ * @template Config - The route configuration type extending RouteConfig
+ * @param options - Configuration options for the skRoutes system
+ * @param options.errorURL - URL to redirect to when validation fails (receives error as query param)
+ * @param options.config - Route configuration object mapping addresses to validation functions
+ * @param options.updateAction - Default action when route parameters change ('goto' | 'nil')
+ *
+ * @returns Object containing urlGenerator and pageInfo functions
+ *
+ * @example
+ * ```typescript
+ * const { urlGenerator, pageInfo } = skRoutes({
+ *   errorURL: '/error',
+ *   config: {
+ *     '/users/[id]': {
+ *       paramsValidation: z.object({ id: z.string() }).parse,
+ *       searchParamsValidation: z.object({ tab: z.string().optional() }).parse
+ *     }
+ *   }
+ * });
+ *
+ * // Generate a typesafe URL
+ * const userUrl = urlGenerator({
+ *   address: '/users/[id]',
+ *   paramsValue: { id: '123' },
+ *   searchParamsValue: { tab: 'profile' }
+ * });
+ * ```
+ */
+export function skRoutes<Config extends RouteConfig>({
+	errorURL,
+	config,
+	updateAction = 'goto'
+}: {
+	errorURL: string;
+	config: Config;
+	updateAction?: RouteUpdateAction;
+}) {
+	/**
+	 * Generates typesafe URLs for configured routes with parameter validation.
+	 *
+	 * @param input - URL generation parameters
+	 * @param input.address - Route address pattern (e.g., '/users/[id]')
+	 * @param input.paramsValue - Route parameters object
+	 * @param input.searchParamsValue - Search parameters object
+	 * @returns Object containing the generated URL and validated parameters
+	 */
+	const urlGenerator = createUrlGenerator(config, errorURL);
+
+	/**
+	 * Creates reactive route information and parameter update utilities for a specific route.
+	 *
+	 * This function provides client-side route state management with automatic URL synchronization.
+	 * It returns utilities to access current route parameters and update them with validation.
+	 *
+	 * @template Address - The specific route address from the config
+	 * @param routeId - The route address pattern (must match a key in config)
+	 * @param pageInfo - Function that returns current page information from SvelteKit
+	 * @param pageInfo().params - Current route parameters from the URL
+	 * @param pageInfo().url.search - Current URL search string
+	 * @param config - Optional configuration for updates
+	 * @param config.updateDelay - Delay in milliseconds before URL update (default: 0)
+	 * @param config.onUpdate - Callback function called when URL updates
+	 * @param config.updateAction - Override default update action for this route
+	 * @param config.debug - Enable debug logging for this route instance
+	 *
+	 * @returns Object with current state and update functions
+	 *
+	 * @example
+	 * ```typescript
+	 * // In a +page.svelte file
+	 * export let data;
+	 *
+	 * const route = pageInfo('/users/[id]', () => data, {
+	 *   updateDelay: 500, // 500ms delay
+	 *   onUpdate: (url) => console.log('URL updated:', url),
+	 *   debug: true // Enable debug logging
+	 * });
+	 *
+	 * // Access current parameters
+	 * console.log(route.current.params.id);
+	 *
+	 * // Bind to form inputs
+	 * <input bind:value={route.current.searchParams.query} />
+	 *
+	 * // Update parameters programmatically (triggers throttled URL update)
+	 * route.updateParams({
+	 *   searchParams: { tab: 'settings' }
+	 * });
+	 *
+	 * // Check if there are unsaved changes
+	 * {#if route.hasChanges}
+	 *   <button onclick={route.resetParams}>Reset</button>
+	 * {/if}
+	 * ```
+	 */
+	const pageInfo = <Address extends keyof Config>(
+		routeId: Address,
+		pageInfo: () => { params: Record<string, string>; url: { search: string } },
+		config: {
+			updateDelay?: number;
+			onUpdate?: (newUrl: string) => unknown;
+			updateAction?: RouteUpdateAction;
+			debug?: boolean;
+		} = {}
+	) => {
+		const usedUpdateAction = config.updateAction || updateAction;
+
+		/**
+		 * Combined state type for both route parameters and search parameters.
+		 * This allows treating them as a single reactive unit for synchronization.
+		 */
+		type CombinedState = {
+			params: ValidatedParamsType<Config, Address>;
+			searchParams: ValidatedSearchParamsType<Config, Address>;
+		};
+
+		/**
+		 * Derived state that automatically updates when pageInfo changes.
+		 * This creates the "source of truth" from the current URL state that
+		 * gets synchronized with the internal reactive state.
+		 */
+		let derivedState = $derived.by(() => {
+			const combinedState = urlGenerator({
+				address: routeId,
+				paramsValue: pageInfo().params as ParamsType<Config, Address>,
+				searchParamsValue: getUrlParams(pageInfo().url.search) as SearchParamsType<Config, Address>
+			});
+			return {
+				params: combinedState.params as ValidatedParamsType<Config, Address>,
+				searchParams: combinedState.searchParams as ValidatedSearchParamsType<Config, Address>
+			};
+		});
+
+		/**
+		 * Bi-directional sync between URL state and internal reactive state.
+		 * - derivedState -> syncedState: Updates when URL/pageInfo changes
+		 * - syncedState -> URL: Updates URL when internal state changes (throttled)
+		 */
+		const syncedState = throttledSync({
+			debug: config.debug,
+			getter: () => derivedState,
+			setter: (newState: CombinedState) => {
+				// Only perform URL updates on the client side
+				if (!browser) return;
+
+				// Generate the new URL with validated parameters
+				const result = urlGenerator({
+					address: routeId,
+					paramsValue: newState.params as ParamsType<Config, Address>,
+					searchParamsValue: newState.searchParams as SearchParamsType<Config, Address>
+				});
+
+				if (config.debug) {
+					console.log('[pageInfo] URL update triggered:', {
+						url: result.url,
+						updateAction: usedUpdateAction,
+						params: newState.params,
+						searchParams: newState.searchParams
+					});
+				}
+
+				// Call the user-provided update callback if configured
+				if (config.onUpdate) {
+					config.debug && console.log('[pageInfo] Calling onUpdate with URL:', result.url);
+					config.onUpdate(result.url);
+				}
+
+				// Navigate to the new URL if action is 'goto'
+				if (usedUpdateAction === 'goto') {
+					config.debug && console.log('[pageInfo] Navigating to:', result.url);
+					goto(result.url, { noScroll: true, keepFocus: true });
+				}
+			},
+			throttleTime: config.updateDelay
+		});
+
+		const updateParamsHelper = $derived(
+			createUpdateParams(routeId as string, pageInfo().params, pageInfo().url.search, urlGenerator)
+		);
+
+		/**
+		 * Updates returns the new URL considering the updated parameters supplied.
+		 *
+		 * This function is useful when you need to generate URLs for links or other purposes
+		 * without updating the current route state or triggering navigation.
+		 *
+		 * @param options - Parameter update options
+		 * @param options.params - Partial route parameters to update
+		 * @param options.searchParams - Partial search parameters to update
+		 * @returns Object containing the new URL and validated parameters
+		 */
+		const updateParamsURLGenerator = ({
+			params: newParams = {},
+			searchParams: newSearchParams = {}
+		}: {
+			params?: Partial<ValidatedParamsType<Config, Address>>;
+			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
+		}) => {
+			return updateParamsHelper({
+				params: newParams as Partial<Record<string, string>>,
+				searchParams: newSearchParams as Partial<Record<string, unknown>>
+			});
+		};
+
+		/**
+		 * Updates route parameters and triggers URL navigation/state update.
+		 *
+		 * This function updates the current route state and triggers the configured
+		 * update action (navigation or state-only update) after the specified delay.
+		 *
+		 * @param options - Parameter update options
+		 * @param options.params - Partial route parameters to update
+		 * @param options.searchParams - Partial search parameters to update
+		 * @returns Object containing the new URL and validated parameters
+		 */
+		const updateParams = ({
+			params: newParams = {},
+			searchParams: newSearchParams = {}
+		}: {
+			params?: Partial<ValidatedParamsType<Config, Address>>;
+			searchParams?: Partial<ValidatedSearchParamsType<Config, Address>>;
+		}) => {
+			const result = updateParamsHelper({
+				params: newParams as Partial<Record<string, string>>,
+				searchParams: newSearchParams as Partial<Record<string, unknown>>
+			});
+
+			// Update the synced state - this will trigger the throttled URL update
+			syncedState.state = {
+				params: result.params as ValidatedParamsType<Config, Address>,
+				searchParams: result.searchParams as ValidatedSearchParamsType<Config, Address>
+			};
+
+			return result;
+		};
+
+		/**
+		 * Resets parameters to their initial state from the current pageInfo.
+		 * This is useful for clearing any user modifications and returning to URL state.
+		 */
+		const resetParams = () => {
+			if (config.debug) {
+				console.log('[pageInfo] Resetting parameters to initial state');
+			}
+			syncedState.immediateUpdate(derivedState);
+		};
+
+		/**
+		 * Checks if the current internal state differs from the URL state.
+		 * Useful for showing "unsaved changes" indicators.
+		 */
+		const hasChanges = $derived(() => {
+			return !isEqual(syncedState.state, derivedState);
+		});
+
+		return {
+			/**
+			 * Current route state containing validated parameters and search parameters.
+			 * These are fully reactive $state that can be bound to in templates.
+			 */
+			current: {
+				get params() {
+					return syncedState.state.params;
+				},
+				set params(value: ValidatedParamsType<Config, Address>) {
+					// Update the entire state object to ensure reactivity
+					syncedState.state = {
+						...syncedState.state,
+						params: value
+					};
+				},
+				get searchParams() {
+					return syncedState.state.searchParams;
+				},
+				set searchParams(value: ValidatedSearchParamsType<Config, Address>) {
+					// Update the entire state object to ensure reactivity
+					syncedState.state = {
+						...syncedState.state,
+						searchParams: value
+					};
+				}
+			},
+			updateParams,
+			updateParamsURLGenerator,
+			resetParams,
+			get hasChanges() { return hasChanges; }
+		};
+	};
+
+	return { urlGenerator, pageInfo };
+}

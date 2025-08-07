@@ -1,3 +1,7 @@
-// Reexport your entry components here
-export { skRoutes } from './skRoutes.js';
-export type { RouteConfig } from './skRoutes.js';
+export { skRoutes } from './skRoutes.svelte.js';
+export type { RouteConfig } from './skRoutes.svelte.js';
+
+export { skRoutesServer } from './skRoutes-server.js';
+export type { ServerRouteConfig } from './skRoutes-server.js';
+
+export { skRoutesPlugin } from './vite-plugin-skroutes.js';
