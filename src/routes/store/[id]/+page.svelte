@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { pageInfo } from '$lib/auto-skroutes.svelte';
 
-	const urlInfo = pageInfo('/store/[id]', page);
+	const urlInfo = pageInfo('/store/[id]', () => page);
 
 	const handleInput = (
 		newValue: Event & {

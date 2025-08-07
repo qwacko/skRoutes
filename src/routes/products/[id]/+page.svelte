@@ -7,7 +7,7 @@
 	export const data = undefined; // Unused but required by SvelteKit
 
 	// Reactive state management with URL updates
-	const { current, updateParams } = pageInfo('/products/[id]', page);
+	const { current, updateParams } = pageInfo('/products/[id]', () => page);
 
 	const colors = ['red', 'blue', 'green', 'black', 'white'] as const;
 	const sizes = ['S', 'M', 'L', 'XL'] as const;

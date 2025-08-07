@@ -61,7 +61,7 @@ describe('skRoutes with Standard Schema', () => {
 				}
 			},
 			errorURL: '/error'
-		}).pageInfo('/users/[id]', mockPageData);
+		}).pageInfo('/users/[id]', () => mockPageData);
 
 		expect(current.params).toEqual({ id: 'user123' });
 		expect(current.searchParams).toEqual({ tab: 'settings', page: 2 });

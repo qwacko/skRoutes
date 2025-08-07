@@ -99,16 +99,6 @@ export const serverRouteConfig = {
         validate: (v: any) => ({ value: v || {} })
       }
     },
-        },
-  '/test': {
-          paramsValidation: undefined,
-          searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
         }
 } as const;
 

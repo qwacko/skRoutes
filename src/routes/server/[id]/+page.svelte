@@ -7,7 +7,7 @@
 	const { data } = $props();
 
 	// Server-side processing demo with required search parameters
-	const { current, updateParams } = pageInfo('/server/[id]', page);
+	const { current, updateParams } = pageInfo('/server/[id]', () => page);
 
 	const demoServers = [
 		{ id: 'web-server', name: 'Web Server', emoji: '🌐', description: 'HTTP/HTTPS web server' },
