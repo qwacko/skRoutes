@@ -1,15 +1,8 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { pageInfoStore } from '../../routeConfig.js';
+	import { page } from '$app/state';
+	import { pageInfo } from '$lib/auto-skroutes.svelte';
 
-	const pageStore = pageInfoStore({
-		routeId: '/store/[id]/',
-		pageInfo: page,
-		updateDelay: 500,
-		onUpdate: (newURL) => (browser ? goto(newURL) : undefined)
-	});
+	const urlInfo = pageInfo('/store/[id]', () => page);
 
 	const handleInput = (
 		newValue: Event & {
@@ -18,32 +11,46 @@
 	) => {
 		if (newValue.target && 'value' in newValue.target) {
 			const newString = newValue.target.value as string;
-			if ($pageStore.searchParams && $pageStore.searchParams.nested) {
-				$pageStore.searchParams.nested.item1 = newString;
-			} else {
-				// Handle the case where `nested` doesn't exist yet
-				$pageStore.searchParams = {
-					...$pageStore.searchParams,
+			urlInfo.updateParams({
+				searchParams: {
 					nested: { item1: newString }
-				};
-			}
+				}
+			});
+		}
+	};
+
+	const handleIdChange = (
+		newValue: Event & {
+			currentTarget: EventTarget & HTMLInputElement;
+		}
+	) => {
+		if (newValue.target && 'value' in newValue.target) {
+			const newId = newValue.target.value as string;
+			urlInfo.updateParams({
+				params: { id: newId }
+			});
 		}
 	};
 </script>
 
-{#if $pageStore.params}
-	<label for="topLevel">ID</label>
-	<input id="topLevel" type="string" bind:value={$pageStore.params.id} />
-{/if}
-
-{#if $pageStore.searchParams}
-	<label for="topLevel">item1</label>
+{#if urlInfo.current.params}
+	<label for="idInput">ID</label>
 	<input
-		id="topLevel"
+		id="idInput"
 		type="string"
-		value={$pageStore.searchParams?.nested?.item1}
-		on:input={(newValue) => handleInput(newValue)}
+		value={urlInfo.current.params.id}
+		oninput={(newValue) => handleIdChange(newValue)}
 	/>
 {/if}
 
-<pre>{JSON.stringify($pageStore, null, 2)}</pre>
+{#if urlInfo.current.searchParams}
+	<label for="item1Input">item1</label>
+	<input
+		id="item1Input"
+		type="string"
+		value={(urlInfo.current.searchParams as any)?.nested?.item1 || ''}
+		oninput={(newValue) => handleInput(newValue)}
+	/>
+{/if}
+
+<pre>{JSON.stringify(urlInfo.current, null, 2)}</pre>

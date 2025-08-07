@@ -1,7 +1,24 @@
-import { serverPageInfo } from '../../routeConfig.js';
+import { z } from 'zod';
+import type { RouteConfigDefinition } from '$lib/route-config-types';
 
-export const load = (data) => {
-	const { current: urlData } = serverPageInfo('/server/[id]', data);
+// Use new unified route config format
+export const _routeConfig = {
+	paramsValidation: z.object({
+		id: z.string()
+	}),
+	searchParamsValidation: z.object({
+		data: z.string(),
+		date: z.date().optional()
+	})
+} satisfies RouteConfigDefinition;
 
-	return urlData;
+export const load = ({ params, url }: any) => {
+	// Simple server-side data loading without serverPageInfo for now
+	return {
+		params: { id: params.id },
+		searchParams: {
+			data: url.searchParams.get('data') || '',
+			date: url.searchParams.get('date')
+		}
+	};
 };
