@@ -317,7 +317,7 @@ export function skRoutes<Config extends RouteConfig>({
 			updateParams,
 			updateParamsURLGenerator,
 			resetParams,
-			hasChanges
+			get hasChanges() { return hasChanges; }
 		};
 	};
 
