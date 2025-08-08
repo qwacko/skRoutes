@@ -6,8 +6,6 @@ export const _routeConfig = {
 };
 
 export const load = (data) => {
-	const { current } = universalPageInfo(data.route.id, data);
-
 	return {
 		message: 'This route has no validation'
 	};
