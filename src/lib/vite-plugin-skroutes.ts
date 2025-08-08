@@ -232,11 +232,11 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
 				);
 
-				const paramsValidation = schema.hasParamsValidation 
-					? `${schemaAlias}.paramsValidation` 
+				const paramsValidation = schema.hasParamsValidation
+					? `${schemaAlias}.paramsValidation`
 					: 'undefined';
-				const searchParamsValidation = schema.hasSearchParamsValidation 
-					? `${schemaAlias}.searchParamsValidation` 
+				const searchParamsValidation = schema.hasSearchParamsValidation
+					? `${schemaAlias}.searchParamsValidation`
 					: 'undefined';
 
 				const entry = `'${schema.routePath}': {
@@ -282,11 +282,11 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 
 				if (schema.routeConfig) {
 					// Use proper type inference with conditional logic
-					const paramsType = schema.hasParamsValidation 
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>` 
+					const paramsType = schema.hasParamsValidation
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
 						: 'Record<string, string>';
-					const searchParamsType = schema.hasSearchParamsValidation 
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>` 
+					const searchParamsType = schema.hasSearchParamsValidation
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
 						: 'Record<string, unknown>';
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
@@ -312,7 +312,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 
 		return `// Auto-generated server-side config by skroutes-plugin
 // WARNING: This file imports from server files and should only be used server-side
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+export type { StandardSchemaV1 } from 'skroutes';
 ${detectedImports.join('\n')}
 
 // Import schema definitions from both client and server files
@@ -367,11 +367,11 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
 				);
 
-				const paramsValidation = schema.hasParamsValidation 
-					? `${schemaAlias}.paramsValidation` 
+				const paramsValidation = schema.hasParamsValidation
+					? `${schemaAlias}.paramsValidation`
 					: 'undefined';
-				const searchParamsValidation = schema.hasSearchParamsValidation 
-					? `${schemaAlias}.searchParamsValidation` 
+				const searchParamsValidation = schema.hasSearchParamsValidation
+					? `${schemaAlias}.searchParamsValidation`
 					: 'undefined';
 
 				const entry = `'${schema.routePath}': {
@@ -417,11 +417,11 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 				if (schema.routeConfig) {
 					// Use proper type inference with conditional logic
-					const paramsType = schema.hasParamsValidation 
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>` 
+					const paramsType = schema.hasParamsValidation
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
 						: 'Record<string, string>';
-					const searchParamsType = schema.hasSearchParamsValidation 
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>` 
+					const searchParamsType = schema.hasSearchParamsValidation
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
 						: 'Record<string, unknown>';
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
@@ -447,7 +447,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 		return `// Auto-generated client-side config by skroutes-plugin
 // This file only imports from client-side files and can be safely used in the browser
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+export type { StandardSchemaV1 } from 'skroutes';
 ${detectedImports.join('\n')}
 
 // Import schema definitions from client-side page files only
@@ -503,7 +503,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
 						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
 						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
-						
+
 						schemas.push({
 							routePath,
 							filePath: fullPath,
@@ -548,7 +548,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
 						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
 						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
-						
+
 						schemas.push({
 							routePath,
 							filePath: fullPath,
