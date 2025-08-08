@@ -2,6 +2,18 @@ import type { Plugin } from 'vite';
 import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
+type UnconfiguredParamStrategy = 
+	| 'allowAll' // Record<string, string>
+	| 'never' // {}
+	| 'simple' // { [key: string]?: string }
+	| 'strict'; // never (prevents usage)
+
+type UnconfiguredSearchParamStrategy = 
+	| 'allowAll' // Record<string, unknown>
+	| 'never' // {}
+	| 'simple' // { [key: string]?: string | string[] }
+	| 'strict'; // never (prevents usage)
+
 interface PluginOptions {
 	serverOutputPath?: string;
 	clientOutputPath?: string;
@@ -9,6 +21,8 @@ interface PluginOptions {
 	includeServerFiles?: boolean;
 	baseConfig?: Record<string, any>;
 	errorURL?: string;
+	unconfiguredParams?: UnconfiguredParamStrategy;
+	unconfiguredSearchParams?: UnconfiguredSearchParamStrategy;
 }
 
 interface SchemaDefinition {
@@ -26,7 +40,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		imports = [],
 		includeServerFiles = true,
 		baseConfig = {},
-		errorURL = '/error'
+		errorURL = '/error',
+		unconfiguredParams = 'allowAll',
+		unconfiguredSearchParams = 'allowAll'
 	} = options;
 	let root: string;
 
@@ -122,6 +138,100 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		return routes;
 	}
 
+	function getUnconfiguredParamsValidation(strategy: UnconfiguredParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+			case 'never':
+			case 'strict':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      }`;
+			case 'simple':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | undefined> = {};
+            for (const [key, val] of Object.entries(v)) {
+              result[key] = val ? String(val) : undefined;
+            }
+            return { value: result };
+          }
+        }
+      }`;
+			default:
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+		}
+	}
+
+	function getUnconfiguredSearchParamsValidation(strategy: UnconfiguredSearchParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+			case 'never':
+			case 'strict':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      }`;
+			case 'simple':
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | string[] | undefined> = {};
+            for (const [key, val] of Object.entries(v)) {
+              if (Array.isArray(val)) {
+                result[key] = val.map(String);
+              } else if (val != null) {
+                result[key] = String(val);
+              }
+            }
+            return { value: result };
+          }
+        }
+      }`;
+			default:
+				return `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+		}
+	}
+
 	function generateSmartParamValidation(routePath: string): {
 		paramsValidation: string;
 		searchParamsValidation: string;
@@ -130,7 +240,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		const paramMatches = routePath.match(/\[([^\]]+)\]/g) || [];
 		const optionalParamMatches = routePath.match(/\[\[([^\]]+)\]\]/g) || [];
 
-		let paramsValidation = 'undefined';
+		let paramsValidation: string;
 
 		if (paramMatches.length > 0 || optionalParamMatches.length > 0) {
 			// Create a simple validator that just passes through string values
@@ -161,47 +271,83 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
           }
         }
       }`;
+		} else {
+			// Use configured strategy for routes without defined params
+			paramsValidation = getUnconfiguredParamsValidation(unconfiguredParams);
 		}
 
-		// Always provide empty search params validation
-		const searchParamsValidation = `{
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    }`;
+		// Search params always use the configured strategy for unconfigured routes
+		const searchParamsValidation = getUnconfiguredSearchParamsValidation(unconfiguredSearchParams);
 
 		return { paramsValidation, searchParamsValidation };
 	}
 
-	function generateSmartParamTypes(routePath: string): { paramsType: string } {
+	function getUnconfiguredParamsType(strategy: UnconfiguredParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return 'Record<string, string>';
+			case 'never':
+				return '{}';
+			case 'simple':
+				return '{ [key: string]?: string }';
+			case 'strict':
+				return 'never';
+			default:
+				return 'Record<string, string>';
+		}
+	}
+
+	function getUnconfiguredSearchParamsType(strategy: UnconfiguredSearchParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return 'Record<string, unknown>';
+			case 'never':
+				return '{}';
+			case 'simple':
+				return '{ [key: string]?: string | string[] }';
+			case 'strict':
+				return 'never';
+			default:
+				return 'Record<string, unknown>';
+		}
+	}
+
+	function generateSmartParamTypes(routePath: string): { paramsType: string; searchParamsType: string } {
 		// Extract parameter names from route path
 		const paramMatches = routePath.match(/\[([^\]]+)\]/g) || [];
 		const optionalParamMatches = routePath.match(/\[\[([^\]]+)\]\]/g) || [];
 
+		let paramsType: string;
+
 		if (paramMatches.length === 0 && optionalParamMatches.length === 0) {
-			return { paramsType: 'Record<string, string>' };
+			// No params defined in route, use configured strategy
+			paramsType = getUnconfiguredParamsType(unconfiguredParams);
+		} else {
+			// Route has params defined, generate specific types
+			const paramTypes: string[] = [];
+
+			// Handle required parameters [id]
+			paramMatches.forEach((match) => {
+				const paramName = match.replace(/[\[\]]/g, '');
+				// Skip if it's an optional parameter (will be handled separately)
+				if (!optionalParamMatches.some((opt) => opt.includes(paramName))) {
+					paramTypes.push(`${paramName}: string`);
+				}
+			});
+
+			// Handle optional parameters [[id]]
+			optionalParamMatches.forEach((match) => {
+				const paramName = match.replace(/[\[\]]/g, '');
+				paramTypes.push(`${paramName}?: string`);
+			});
+
+			paramsType = `{ ${paramTypes.join('; ')} }`;
 		}
 
-		const paramTypes: string[] = [];
+		// Search params always use the configured strategy for unconfigured routes
+		const searchParamsType = getUnconfiguredSearchParamsType(unconfiguredSearchParams);
 
-		// Handle required parameters [id]
-		paramMatches.forEach((match) => {
-			const paramName = match.replace(/[\[\]]/g, '');
-			// Skip if it's an optional parameter (will be handled separately)
-			if (!optionalParamMatches.some((opt) => opt.includes(paramName))) {
-				paramTypes.push(`${paramName}: string`);
-			}
-		});
-
-		// Handle optional parameters [[id]]
-		optionalParamMatches.forEach((match) => {
-			const paramName = match.replace(/[\[\]]/g, '');
-			paramTypes.push(`${paramName}?: string`);
-		});
-
-		return { paramsType: `{ ${paramTypes.join('; ')} }` };
+		return { paramsType, searchParamsType };
 	}
 
 	function generateServerConfigModule(): string {
@@ -305,14 +451,20 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 			.filter((route) => !routesWithConfig.has(route))
 			.map((routePath) => {
 				const smartTypes = generateSmartParamTypes(routePath);
-				return `  '${routePath}': { params: ${smartTypes.paramsType}; searchParams: Record<string, unknown> }`;
+				return `  '${routePath}': { params: ${smartTypes.paramsType}; searchParams: ${smartTypes.searchParamsType} }`;
 			});
 
 		const typeMapping = [...baseTypeMapping, ...serverTypeMapping, ...smartTypeMapping].join(';\n');
 
+		// Check if StandardSchemaV1 is used in the generated content
+		const usesStandardSchema = typeMapping.includes('StandardSchemaV1') || 
+			configEntries.some(entry => entry.includes('StandardSchemaV1'));
+
+		const standardSchemaImport = usesStandardSchema ? 'import type { StandardSchemaV1 } from \'skroutes\';' : '';
+
 		return `// Auto-generated server-side config by skroutes-plugin
 // WARNING: This file imports from server files and should only be used server-side
-export type { StandardSchemaV1 } from 'skroutes';
+${standardSchemaImport}
 ${detectedImports.join('\n')}
 
 // Import schema definitions from both client and server files
@@ -440,14 +592,20 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 			.filter((route) => !routesWithClientConfig.has(route))
 			.map((routePath) => {
 				const smartTypes = generateSmartParamTypes(routePath);
-				return `  '${routePath}': { params: ${smartTypes.paramsType}; searchParams: Record<string, unknown> }`;
+				return `  '${routePath}': { params: ${smartTypes.paramsType}; searchParams: ${smartTypes.searchParamsType} }`;
 			});
 
 		const typeMapping = [...baseTypeMapping, ...clientTypeMapping, ...smartTypeMapping].join(';\n');
 
+		// Check if StandardSchemaV1 is used in the generated content
+		const usesStandardSchema = typeMapping.includes('StandardSchemaV1') || 
+			configEntries.some(entry => entry.includes('StandardSchemaV1'));
+
+		const standardSchemaImport = usesStandardSchema ? 'import type { StandardSchemaV1 } from \'skroutes\';' : '';
+
 		return `// Auto-generated client-side config by skroutes-plugin
 // This file only imports from client-side files and can be safely used in the browser
-export type { StandardSchemaV1 } from 'skroutes';
+${standardSchemaImport}
 ${detectedImports.join('\n')}
 
 // Import schema definitions from client-side page files only

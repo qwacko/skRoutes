@@ -1,6 +1,6 @@
 // Auto-generated client-side config by skroutes-plugin
 // This file only imports from client-side files and can be safely used in the browser
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from 'skroutes';
 
 
 // Import schema definitions from client-side page files only
@@ -27,14 +27,20 @@ export const clientRouteConfig = {
           searchParamsValidation: routeConfig3.searchParamsValidation,
         },
   '/': {
-          paramsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/api/users/[id]': {
           paramsValidation: {
@@ -51,22 +57,28 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/error': {
-          paramsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/optional/[[slug]]': {
           paramsValidation: {
@@ -83,12 +95,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/products/[id]': {
           paramsValidation: {
@@ -105,12 +117,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/server/[id]': {
           paramsValidation: {
@@ -127,12 +139,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/store/[id]': {
           paramsValidation: {
@@ -149,12 +161,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/type-test/[id]': {
           paramsValidation: {
@@ -171,12 +183,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         },
   '/users/[id]': {
           paramsValidation: {
@@ -193,12 +205,12 @@ export const clientRouteConfig = {
         }
       },
           searchParamsValidation: {
-      '~standard': {
-        version: 1,
-        vendor: 'skroutes',
-        validate: (v: any) => ({ value: v || {} })
-      }
-    },
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      },
         }
 } as const;
 
