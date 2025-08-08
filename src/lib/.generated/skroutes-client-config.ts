@@ -29,8 +29,8 @@ export type RouteValidationTypeMap = {
   '/users/[id]': { paramsValidation: typeof serverRouteConfig1004.paramsValidation; searchParamsValidation: typeof serverRouteConfig1004.searchParamsValidation };
   '/': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> };
   '/error': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> };
-  '/optional/[[slug]]': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> };
-  '/store/[id]': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> }
+  '/optional/[[slug]]': { paramsValidation: StandardSchemaV1<any, { slug?: string }>; searchParamsValidation: StandardSchemaV1<any, {}> };
+  '/store/[id]': { paramsValidation: StandardSchemaV1<any, { id: string }>; searchParamsValidation: StandardSchemaV1<any, {}> }
 };
 
 export const clientRouteConfig = {

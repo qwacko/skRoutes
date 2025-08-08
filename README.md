@@ -36,7 +36,7 @@ pnpm add skroutes
 - 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library  
 - 📝 **Type-safe URL generation** with automatic validation and proper return types
 - 🚦 **Compile-time Route Validation**: TypeScript catches invalid routes and parameter types
-- 🎯 **Parameter Strategy System**: Flexible handling of unconfigured routes (`allowAll`, `never`, `simple`, `strict`)
+- 🎯 **Parameter Strategy System**: Flexible handling of unconfigured routes (`allowAll`, `never`, `simple`, `strict`, `deriveParams`)
 - 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed
 
 ### 🎨 **Reactive State Management**
@@ -203,7 +203,7 @@ export default defineConfig({
 			imports: ["import { z } from 'zod';"],
 			
 			// Optional: How to handle routes without explicit validation
-			unconfiguredParams: 'allowAll', // 'allowAll' | 'never' | 'simple' | 'strict'
+			unconfiguredParams: 'allowAll', // 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'
 			unconfiguredSearchParams: 'allowAll',
 			
 			// Optional: Custom paths for generated files
@@ -317,6 +317,7 @@ skRoutesPlugin({
 	// unconfiguredParams: 'allowAll', // Accept any string parameters
 	// unconfiguredParams: 'simple', // Optional string parameters
 	// unconfiguredParams: 'strict', // Compile-time error (prevents usage)
+	// unconfiguredParams: 'deriveParams', // Auto-derive from route path (NEW!)
 	
 	// Strategy for search parameters ?page=1&sort=name
 	unconfiguredSearchParams: 'simple', // Optional string/array parameters  
@@ -334,6 +335,30 @@ skRoutesPlugin({
 - **`'allowAll'`**: Routes generate `Record<string, string>` - accepts any parameters  
 - **`'simple'`**: Routes generate `{ [key: string]?: string }` - optional parameters
 - **`'strict'`**: Routes generate `never` - TypeScript prevents usage entirely
+- **`'deriveParams'` (NEW!)**: Automatically derives exact parameter types from route paths
+  - `/users/[id]` → `{ id: string }`
+  - `/posts/[slug]/comments/[[page]]` → `{ slug: string; page?: string }`
+  - `/products` → `{}` (no parameters)
+
+**Why use `deriveParams`?**
+```typescript
+// With 'deriveParams', you get automatic type safety without manual configuration
+// Route: /users/[id]/posts/[[page]]
+const userPostsUrl = urlGenerator('/users/[id]/posts/[[page]]', {
+  params: { 
+    id: '123',        // ✅ Required - TypeScript enforces this
+    page: '2'         // ✅ Optional - inferred from [[page]]
+  }
+});
+
+// TypeScript catches errors automatically:
+const badUrl = urlGenerator('/users/[id]/posts/[[page]]', {
+  params: { 
+    // ❌ Error: Property 'id' is missing - TypeScript catches this!
+    page: '2'
+  }
+});
+```
 
 #### Hot Reload & Development
 
@@ -633,7 +658,7 @@ interface PluginOptions {
 	baseConfig?: Record<string, any>; // default: {}
 	
 	/** Strategy for handling unconfigured route parameters */
-	unconfiguredParams?: 'allowAll' | 'never' | 'simple' | 'strict'; // default: 'allowAll'
+	unconfiguredParams?: 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'; // default: 'allowAll'
 	
 	/** Strategy for handling unconfigured search parameters */
 	unconfiguredSearchParams?: 'allowAll' | 'never' | 'simple' | 'strict'; // default: 'allowAll'
@@ -655,6 +680,10 @@ unconfiguredSearchParams: 'simple',  // Optional parameters
 // For maximum flexibility
 unconfiguredParams: 'allowAll',      // Accepts any parameters
 unconfiguredSearchParams: 'allowAll' // Accepts any search params
+
+// For automatic route parameter detection (NEW!)
+unconfiguredParams: 'deriveParams',  // Derives exact parameters from route paths
+unconfiguredSearchParams: 'never'    // Forces explicit search param configuration
 ```
 
 #### 2. **File Organization**

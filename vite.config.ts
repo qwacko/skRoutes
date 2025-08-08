@@ -8,7 +8,7 @@ export default defineConfig({
 		skRoutesPlugin({
 			imports: [],
 			errorURL: '/error',
-			unconfiguredParams: 'never',
+			unconfiguredParams: 'deriveParams',
 			unconfiguredSearchParams: 'never'
 		})
 	],
