@@ -8,7 +8,6 @@ import { _routeConfig as routeConfig0 } from '../../../src/routes/[id]/+page';
 import { _routeConfig as routeConfig1 } from '../../../src/routes/api/users/[id]/+server';
 import { _routeConfig as routeConfig2 } from '../../../src/routes/products/[id]/+page.server';
 import { _routeConfig as routeConfig3 } from '../../../src/routes/server/[id]/+page.server';
-import { _routeConfig as routeConfig4 } from '../../../src/routes/test-no-validation/+page';
 import { _routeConfig as routeConfig5 } from '../../../src/routes/test-partial/[id]/+page';
 import { _routeConfig as routeConfig6 } from '../../../src/routes/test-search-only/+page';
 import { _routeConfig as routeConfig7 } from '../../../src/routes/type-test/[id]/+page.server';

@@ -373,10 +373,15 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 			const relativePath = generateRelativeImportPath(schema.filePath);
 
 			if (schema.routeConfig) {
-				// Import the entire route config
-				schemaImports.push(
-					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
-				);
+				// Only import if the route config has validation functions that will be used
+				const hasUsableValidation = schema.hasParamsValidation || schema.hasSearchParamsValidation;
+				
+				if (hasUsableValidation) {
+					// Import the entire route config
+					schemaImports.push(
+						`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
+					);
+				}
 
 				const paramsValidation = schema.hasParamsValidation
 					? `${schemaAlias}.paramsValidation`
@@ -456,9 +461,8 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 
 		const typeMapping = [...baseTypeMapping, ...serverTypeMapping, ...smartTypeMapping].join(';\n');
 
-		// Check if StandardSchemaV1 is used in the generated content
-		const usesStandardSchema = typeMapping.includes('StandardSchemaV1') || 
-			configEntries.some(entry => entry.includes('StandardSchemaV1'));
+		// Check if StandardSchemaV1 is used in the type mappings (the only place it's actually needed)
+		const usesStandardSchema = typeMapping.includes('StandardSchemaV1');
 
 		const standardSchemaImport = usesStandardSchema ? 'import type { StandardSchemaV1 } from \'skroutes\';' : '';
 
@@ -514,10 +518,15 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 			const relativePath = generateRelativeImportPath(schema.filePath);
 
 			if (schema.routeConfig) {
-				// Import the entire route config
-				schemaImports.push(
-					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
-				);
+				// Only import if the route config has validation functions that will be used
+				const hasUsableValidation = schema.hasParamsValidation || schema.hasSearchParamsValidation;
+				
+				if (hasUsableValidation) {
+					// Import the entire route config
+					schemaImports.push(
+						`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
+					);
+				}
 
 				const paramsValidation = schema.hasParamsValidation
 					? `${schemaAlias}.paramsValidation`
@@ -597,9 +606,8 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 		const typeMapping = [...baseTypeMapping, ...clientTypeMapping, ...smartTypeMapping].join(';\n');
 
-		// Check if StandardSchemaV1 is used in the generated content
-		const usesStandardSchema = typeMapping.includes('StandardSchemaV1') || 
-			configEntries.some(entry => entry.includes('StandardSchemaV1'));
+		// Check if StandardSchemaV1 is used in the type mappings (the only place it's actually needed)
+		const usesStandardSchema = typeMapping.includes('StandardSchemaV1');
 
 		const standardSchemaImport = usesStandardSchema ? 'import type { StandardSchemaV1 } from \'skroutes\';' : '';
 

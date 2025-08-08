@@ -5,7 +5,6 @@ import type { StandardSchemaV1 } from 'skroutes';
 
 // Import schema definitions from client-side page files only
 import { _routeConfig as routeConfig0 } from '../../../src/routes/[id]/+page';
-import { _routeConfig as routeConfig1 } from '../../../src/routes/test-no-validation/+page';
 import { _routeConfig as routeConfig2 } from '../../../src/routes/test-partial/[id]/+page';
 import { _routeConfig as routeConfig3 } from '../../../src/routes/test-search-only/+page';
 
