@@ -7,7 +7,8 @@ export default defineConfig({
 		sveltekit(),
 		skRoutesPlugin({
 			imports: [],
-			errorURL: '/error'
+			errorURL: '/error',
+			
 		})
 	],
 	test: {

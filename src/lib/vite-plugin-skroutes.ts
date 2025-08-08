@@ -1,38 +1,160 @@
+/**
+ * skRoutes Vite Plugin
+ * 
+ * Automatically generates TypeScript configuration files for skRoutes by scanning your SvelteKit routes.
+ * Creates both client-side and server-side configurations with proper type inference.
+ * 
+ * @example
+ * ```typescript
+ * // vite.config.ts
+ * import { skRoutesPlugin } from './src/lib/vite-plugin-skroutes.js';
+ * 
+ * export default defineConfig({
+ *   plugins: [
+ *     sveltekit(),
+ *     skRoutesPlugin({
+ *       errorURL: '/error',
+ *       unconfiguredParams: 'simple',
+ *       unconfiguredSearchParams: 'never'
+ *     })
+ *   ]
+ * });
+ * ```
+ */
+
 import type { Plugin } from 'vite';
 import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
+/**
+ * Strategy for handling TypeScript types of unconfigured route parameters.
+ * Controls how parameters are typed when no explicit validation is provided.
+ */
 type UnconfiguredParamStrategy = 
-	| 'allowAll' // Record<string, string>
-	| 'never' // {}
-	| 'simple' // { [key: string]?: string }
-	| 'strict'; // never (prevents usage)
+	| 'allowAll' // Record<string, string> - Accepts any string parameters
+	| 'never' // {} - No parameters allowed
+	| 'simple' // { [key: string]?: string } - Optional string parameters
+	| 'strict'; // never - Prevents usage entirely (compile-time error)
 
+/**
+ * Strategy for handling TypeScript types of unconfigured search parameters.
+ * Controls how search parameters are typed when no explicit validation is provided.
+ */
 type UnconfiguredSearchParamStrategy = 
-	| 'allowAll' // Record<string, unknown>
-	| 'never' // {}
-	| 'simple' // { [key: string]?: string | string[] }
-	| 'strict'; // never (prevents usage)
+	| 'allowAll' // Record<string, unknown> - Accepts any search parameters
+	| 'never' // {} - No search parameters allowed
+	| 'simple' // { [key: string]?: string | string[] } - Optional string/array parameters
+	| 'strict'; // never - Prevents usage entirely (compile-time error)
 
+/**
+ * Configuration options for the skRoutes Vite plugin.
+ */
 interface PluginOptions {
+	/** Path where the server-side config file will be generated. @default 'src/lib/.generated/skroutes-server-config.ts' */
 	serverOutputPath?: string;
+	
+	/** Path where the client-side config file will be generated. @default 'src/lib/.generated/skroutes-client-config.ts' */
 	clientOutputPath?: string;
+	
+	/** Additional import statements to include in generated files. @default [] */
 	imports?: string[];
+	
+	/** Whether to include server-side files (+page.server.ts, +server.ts) in scanning. @default true */
 	includeServerFiles?: boolean;
+	
+	/** Manual route configurations to include alongside auto-detected routes. @default {} */
 	baseConfig?: Record<string, any>;
+	
+	/** URL to redirect to when validation fails. @default '/error' */
 	errorURL?: string;
+	
+	/** How to type unconfigured route parameters. @default 'allowAll' */
 	unconfiguredParams?: UnconfiguredParamStrategy;
+	
+	/** How to type unconfigured search parameters. @default 'allowAll' */
 	unconfiguredSearchParams?: UnconfiguredSearchParamStrategy;
 }
 
+/**
+ * Internal interface representing a detected route configuration.
+ * Used to track which routes have explicit validation and where they're defined.
+ */
 interface SchemaDefinition {
+	/** The SvelteKit route path (e.g., '/users/[id]') */
 	routePath: string;
+	/** Absolute file path to the route file */
 	filePath: string;
+	/** Name of the exported route config (usually '_routeConfig') */
 	routeConfig?: string;
+	/** Whether this route exports paramsValidation */
 	hasParamsValidation?: boolean;
+	/** Whether this route exports searchParamsValidation */
 	hasSearchParamsValidation?: boolean;
 }
 
+/**
+ * Creates a Vite plugin that automatically generates skRoutes configuration files.
+ * 
+ * ## How It Works
+ * 
+ * 1. **Route Discovery**: Scans your `src/routes` directory for SvelteKit route files
+ * 2. **Configuration Detection**: Looks for `_routeConfig` exports in `+page.ts`, `+page.server.ts`, and `+server.ts` files
+ * 3. **Smart Defaults**: Automatically generates validation and types for routes without explicit configuration
+ * 4. **Type Generation**: Creates TypeScript type mappings for compile-time type safety
+ * 5. **Hot Reload**: Regenerates configs when route files change during development
+ * 
+ * ## Generated Files
+ * 
+ * - **Client Config**: Safe for browser use, only imports from client-side files
+ * - **Server Config**: Includes server-side routes, should only be used server-side
+ * 
+ * ## Route Configuration
+ * 
+ * Add validation to your routes by exporting `_routeConfig`:
+ * 
+ * ```typescript
+ * // src/routes/users/[id]/+page.ts
+ * import { z } from 'zod';
+ * 
+ * export const _routeConfig = {
+ *   paramsValidation: z.object({ id: z.string().uuid() }).parse,
+ *   searchParamsValidation: z.object({ tab: z.enum(['profile', 'settings']).optional() }).parse
+ * };
+ * ```
+ * 
+ * ## Parameter Type Strategies
+ * 
+ * Control how unconfigured routes are typed:
+ * 
+ * - **`allowAll`** (default): Permissive types like `Record<string, string>`
+ * - **`simple`**: Optional parameters like `{ [key: string]?: string }`
+ * - **`never`**: Empty object `{}` - no parameters allowed
+ * - **`strict`**: TypeScript `never` - prevents usage entirely
+ * 
+ * @param options Configuration options for the plugin
+ * @returns A Vite plugin instance
+ * 
+ * @example
+ * ```typescript
+ * // Basic usage
+ * skRoutesPlugin()
+ * 
+ * // With configuration
+ * skRoutesPlugin({
+ *   errorURL: '/404',
+ *   unconfiguredParams: 'strict',
+ *   unconfiguredSearchParams: 'simple',
+ *   includeServerFiles: false
+ * })
+ * 
+ * // With manual route configs
+ * skRoutesPlugin({
+ *   baseConfig: {
+ *     '/api/health': { paramsValidation: undefined, searchParamsValidation: undefined }
+ *   }
+ * })
+ * ```
+ */
 export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 	const {
 		serverOutputPath = 'src/lib/.generated/skroutes-server-config.ts',
@@ -282,6 +404,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		return { paramsValidation, searchParamsValidation };
 	}
 
+	/**
+	 * Returns the TypeScript type definition for unconfigured route parameters
+	 * based on the selected strategy.
+	 */
 	function getUnconfiguredParamsType(strategy: UnconfiguredParamStrategy): string {
 		switch (strategy) {
 			case 'allowAll':
@@ -297,6 +423,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		}
 	}
 
+	/**
+	 * Returns the TypeScript type definition for unconfigured search parameters
+	 * based on the selected strategy.
+	 */
 	function getUnconfiguredSearchParamsType(strategy: UnconfiguredSearchParamStrategy): string {
 		switch (strategy) {
 			case 'allowAll':
