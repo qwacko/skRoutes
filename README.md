@@ -199,12 +199,15 @@ export default defineConfig({
 			// Required: URL to redirect to when validation fails
 			errorURL: '/error',
 			
+			// Optional: Directory containing SvelteKit routes (relative to project root)
+			routesDirectory: 'src/routes', // default: 'src/routes'
+			
 			// Optional: Additional imports for your validation schemas
 			imports: ["import { z } from 'zod';"],
 			
 			// Optional: How to handle routes without explicit validation
-			unconfiguredParams: 'allowAll', // 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'
-			unconfiguredSearchParams: 'allowAll',
+			unconfiguredParams: 'deriveParams', // 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams' (default)
+			unconfiguredSearchParams: 'never', // 'allowAll' | 'never' | 'simple' | 'strict' (default)
 			
 			// Optional: Custom paths for generated files
 			clientOutputPath: 'src/lib/.generated/skroutes-client-config.ts',
@@ -657,11 +660,14 @@ interface PluginOptions {
 	/** Manual route configurations to include */
 	baseConfig?: Record<string, any>; // default: {}
 	
+	/** Directory containing SvelteKit routes relative to project root */
+	routesDirectory?: string; // default: 'src/routes'
+	
 	/** Strategy for handling unconfigured route parameters */
-	unconfiguredParams?: 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'; // default: 'allowAll'
+	unconfiguredParams?: 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'; // default: 'deriveParams'
 	
 	/** Strategy for handling unconfigured search parameters */
-	unconfiguredSearchParams?: 'allowAll' | 'never' | 'simple' | 'strict'; // default: 'allowAll'
+	unconfiguredSearchParams?: 'allowAll' | 'never' | 'simple' | 'strict'; // default: 'never'
 }
 ```
 
@@ -669,6 +675,10 @@ interface PluginOptions {
 
 #### 1. **Strategy Selection**
 ```typescript
+// Default configuration (recommended for most projects)
+unconfiguredParams: 'deriveParams',  // Auto-derives exact parameters from route paths (NEW DEFAULT!)
+unconfiguredSearchParams: 'never'    // Forces explicit search param configuration (NEW DEFAULT!)
+
 // For new projects - strict validation
 unconfiguredParams: 'strict',        // Prevents accidental usage
 unconfiguredSearchParams: 'never',   // Forces explicit configuration
@@ -680,10 +690,6 @@ unconfiguredSearchParams: 'simple',  // Optional parameters
 // For maximum flexibility
 unconfiguredParams: 'allowAll',      // Accepts any parameters
 unconfiguredSearchParams: 'allowAll' // Accepts any search params
-
-// For automatic route parameter detection (NEW!)
-unconfiguredParams: 'deriveParams',  // Derives exact parameters from route paths
-unconfiguredSearchParams: 'never'    // Forces explicit search param configuration
 ```
 
 #### 2. **File Organization**
@@ -714,6 +720,27 @@ const config = import.meta.env.SSR
 	? await import('$lib/.generated/skroutes-server-config')
 	: await import('$lib/.generated/skroutes-client-config');
 ```
+
+#### 4. **Custom Routes Directory**
+```typescript
+// For projects with non-standard directory structure
+skRoutesPlugin({
+  routesDirectory: 'app/routes',     // Custom routes location
+  clientOutputPath: 'src/generated/client-routes.ts',
+  serverOutputPath: 'src/generated/server-routes.ts'
+})
+
+// For monorepos or custom setups
+skRoutesPlugin({
+  routesDirectory: 'apps/web/src/routes',  // Nested routes directory
+  errorURL: '/error'
+})
+```
+
+**Why customize the routes directory?**
+- **Monorepos**: Different apps may have routes in different locations
+- **Migration**: Gradually moving from non-standard directory structures
+- **Custom setup**: Projects with unique architectural requirements
 
 ## API Reference
 

@@ -7,9 +7,8 @@ export default defineConfig({
 		sveltekit(),
 		skRoutesPlugin({
 			imports: [],
-			errorURL: '/error',
-			unconfiguredParams: 'deriveParams',
-			unconfiguredSearchParams: 'never'
+			errorURL: '/error'
+			// Using new defaults: unconfiguredParams: 'deriveParams', unconfiguredSearchParams: 'never'
 		})
 	],
 	test: {

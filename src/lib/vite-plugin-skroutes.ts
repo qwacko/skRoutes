@@ -69,10 +69,13 @@ interface PluginOptions {
 	/** URL to redirect to when validation fails. @default '/error' */
 	errorURL?: string;
 
-	/** How to type unconfigured route parameters. @default 'allowAll' */
+	/** Directory containing SvelteKit routes relative to project root. @default 'src/routes' */
+	routesDirectory?: string;
+
+	/** How to type unconfigured route parameters. @default 'deriveParams' */
 	unconfiguredParams?: UnconfiguredParamStrategy;
 
-	/** How to type unconfigured search parameters. @default 'allowAll' */
+	/** How to type unconfigured search parameters. @default 'never' */
 	unconfiguredSearchParams?: UnconfiguredSearchParamStrategy;
 }
 
@@ -148,6 +151,7 @@ interface SchemaDefinition {
  * // With configuration
  * skRoutesPlugin({
  *   errorURL: '/404',
+ *   routesDirectory: 'src/routes',
  *   unconfiguredParams: 'strict',
  *   unconfiguredSearchParams: 'simple',
  *   includeServerFiles: false
@@ -169,8 +173,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		includeServerFiles = true,
 		baseConfig = {},
 		errorURL = '/error',
-		unconfiguredParams = 'allowAll',
-		unconfiguredSearchParams = 'allowAll'
+		routesDirectory = 'src/routes',
+		unconfiguredParams = 'deriveParams',
+		unconfiguredSearchParams = 'never'
 	} = options;
 	let root: string;
 
@@ -224,20 +229,26 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		writeFileSync(configPath, configContent, 'utf-8');
 	}
 
-	function generateRelativeImportPath(filePath: string): string {
+	function generateRelativeImportPath(filePath: string, outputPath: string): string {
 		// Convert absolute file path to relative import path from the generated config
 		const relativePath = filePath.replace(root, '').replace(/\\/g, '/');
-
-		// Remove file extension and convert to import path
-		// From src/lib/.generated/ to src/routes/... we need to go up and then down
-		const importPath = relativePath.replace(/\.(ts|js)$/, '').replace(/^\/src\//, '../../../src/');
+		
+		// Calculate the relative path from the output directory to the source file
+		const outputDir = outputPath.split('/').slice(0, -1).join('/');
+		const outputDepth = outputDir.split('/').length;
+		
+		// Generate the correct number of '../' based on output directory depth
+		const upLevels = '../'.repeat(outputDepth);
+		
+		// Remove file extension and create import path
+		const importPath = upLevels + relativePath.replace(/^\//, '').replace(/\.(ts|js)$/, '');
 
 		return importPath;
 	}
 
 	function getAllRoutes(): string[] {
 		const routes: string[] = [];
-		const routesDir = join(root, 'src/routes');
+		const routesDir = join(root, routesDirectory);
 
 		function walkDirectory(dir: string, relativePath = ''): void {
 			if (!existsSync(dir)) return;
@@ -647,7 +658,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 			const schemaAlias = `routeConfig${index}`;
 
 			// Generate relative import path from the generated config to the page file
-			const relativePath = generateRelativeImportPath(schema.filePath);
+			const relativePath = generateRelativeImportPath(schema.filePath, serverOutputPath);
 
 			if (schema.routeConfig) {
 				// Only import if the route config has validation functions that will be used
@@ -854,7 +865,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 			const schemaAlias = `routeConfig${index}`;
 
 			// Generate relative import path from the generated config to the page file
-			const relativePath = generateRelativeImportPath(schema.filePath);
+			const relativePath = generateRelativeImportPath(schema.filePath, clientOutputPath);
 
 			if (schema.routeConfig) {
 				// Only import if the route config has validation functions that will be used
@@ -918,7 +929,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 		routeToServerSchema.forEach((serverSchema, routePath) => {
 			const serverAlias = `serverRouteConfig${serverSchemaIndex}`;
-			const relativePath = generateRelativeImportPath(serverSchema.filePath);
+			const relativePath = generateRelativeImportPath(serverSchema.filePath, clientOutputPath);
 
 			typeOnlyImports.push(
 				`import type { ${serverSchema.routeConfig} as ${serverAlias} } from '${relativePath}';`
@@ -1152,7 +1163,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 	function scanForSchemas(): SchemaDefinition[] {
 		const schemas: SchemaDefinition[] = [];
-		const routesDir = join(root, 'src/routes');
+		const routesDir = join(root, routesDirectory);
 
 		function walkDirectory(dir: string, relativePath = ''): void {
 			if (!existsSync(dir)) return;
@@ -1197,7 +1208,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 	function scanForAllSchemas(): SchemaDefinition[] {
 		const schemas: SchemaDefinition[] = [];
-		const routesDir = join(root, 'src/routes');
+		const routesDir = join(root, routesDirectory);
 
 		function walkDirectory(dir: string, relativePath = ''): void {
 			if (!existsSync(dir)) return;
