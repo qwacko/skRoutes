@@ -3,7 +3,13 @@ import { defineConfig } from 'vite';
 import { skRoutesPlugin } from 'skroutes/plugin';
 
 export default defineConfig({
-	plugins: [sveltekit(), skRoutesPlugin()],
+	plugins: [
+		sveltekit(),
+		skRoutesPlugin({
+			unconfiguredParams: 'never',
+			unconfiguredSearchParams: 'never'
+		})
+	],
 	define: {
 		// Optional: Define any global constants here
 	},

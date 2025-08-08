@@ -448,6 +448,44 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		}
 	}
 
+	/**
+	 * Returns the validation type string for unconfigured route parameters
+	 * based on the selected strategy. Used in RouteValidationTypeMap.
+	 */
+	function getUnconfiguredParamsValidationType(strategy: UnconfiguredParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return 'StandardSchemaV1<any, Record<string, string>>';
+			case 'simple':
+				return 'StandardSchemaV1<any, { [key: string]?: string }>';
+			case 'never':
+				return 'StandardSchemaV1<any, {}>';
+			case 'strict':
+				return 'StandardSchemaV1<any, never>';
+			default:
+				return 'StandardSchemaV1<any, Record<string, string>>';
+		}
+	}
+
+	/**
+	 * Returns the validation type string for unconfigured search parameters
+	 * based on the selected strategy. Used in RouteValidationTypeMap.
+	 */
+	function getUnconfiguredSearchParamsValidationType(strategy: UnconfiguredSearchParamStrategy): string {
+		switch (strategy) {
+			case 'allowAll':
+				return 'StandardSchemaV1<any, Record<string, unknown>>';
+			case 'simple':
+				return 'StandardSchemaV1<any, { [key: string]?: string | string[] }>';
+			case 'never':
+				return 'StandardSchemaV1<any, {}>';
+			case 'strict':
+				return 'StandardSchemaV1<any, never>';
+			default:
+				return 'StandardSchemaV1<any, Record<string, unknown>>';
+		}
+	}
+
 	function generateSmartParamTypes(routePath: string): {
 		paramsType: string;
 		searchParamsType: string;
@@ -808,22 +846,22 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 								? `typeof ${serverSchemaAlias}.paramsValidation`
 								: schema.hasParamsValidation
 									? `typeof ${schemaAlias}.paramsValidation`
-									: 'undefined';
+									: getUnconfiguredParamsValidationType(unconfiguredParams);
 
 						searchParamsValidationType =
 							serverSchema.hasSearchParamsValidation && !schema.hasSearchParamsValidation
 								? `typeof ${serverSchemaAlias}.searchParamsValidation`
 								: schema.hasSearchParamsValidation
 									? `typeof ${schemaAlias}.searchParamsValidation`
-									: 'undefined';
+									: getUnconfiguredSearchParamsValidationType(unconfiguredSearchParams);
 					} else {
 						// No server schema or not better, use client schema
 						paramsValidationType = schema.hasParamsValidation
 							? `typeof ${schemaAlias}.paramsValidation`
-							: 'undefined';
+							: getUnconfiguredParamsValidationType(unconfiguredParams);
 						searchParamsValidationType = schema.hasSearchParamsValidation
 							? `typeof ${schemaAlias}.searchParamsValidation`
-							: 'undefined';
+							: getUnconfiguredSearchParamsValidationType(unconfiguredSearchParams);
 					}
 
 					return `  '${schema.routePath}': { paramsValidation: ${paramsValidationType}; searchParamsValidation: ${searchParamsValidationType} }`;
@@ -834,7 +872,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 		// Add base config validation type mappings
 		const baseValidationTypeMapping = Object.keys(baseConfig).map((routePath) => {
-			return `  '${routePath}': { paramsValidation: undefined; searchParamsValidation: undefined }`;
+			return `  '${routePath}': { paramsValidation: ${getUnconfiguredParamsValidationType(unconfiguredParams)}; searchParamsValidation: ${getUnconfiguredSearchParamsValidationType(unconfiguredSearchParams)} }`;
 		});
 
 		// Add validation type mappings for routes that don't have client configs but have server configs
@@ -851,10 +889,10 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					// Use server schema validation types for routes without client config
 					const paramsValidationType = serverSchema.hasParamsValidation
 						? `typeof ${serverSchemaAlias}.paramsValidation`
-						: 'undefined';
+						: getUnconfiguredParamsValidationType(unconfiguredParams);
 					const searchParamsValidationType = serverSchema.hasSearchParamsValidation
 						? `typeof ${serverSchemaAlias}.searchParamsValidation`
-						: 'undefined';
+						: getUnconfiguredSearchParamsValidationType(unconfiguredSearchParams);
 
 					return `  '${routePath}': { paramsValidation: ${paramsValidationType}; searchParamsValidation: ${searchParamsValidationType} }`;
 				}
@@ -866,7 +904,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 		const smartValidationTypeMapping = allRoutes
 			.filter((route) => !routesWithClientConfig.has(route) && !routeToServerSchema.has(route))
 			.map((routePath) => {
-				return `  '${routePath}': { paramsValidation: undefined; searchParamsValidation: undefined }`;
+				return `  '${routePath}': { paramsValidation: ${getUnconfiguredParamsValidationType(unconfiguredParams)}; searchParamsValidation: ${getUnconfiguredSearchParamsValidationType(unconfiguredSearchParams)} }`;
 			});
 
 		// Generate type mappings for each route, preferring server schema types when available
