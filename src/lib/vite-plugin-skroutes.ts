@@ -77,6 +77,8 @@ interface PluginOptions {
 
 	/** How to type unconfigured search parameters. @default 'never' */
 	unconfiguredSearchParams?: UnconfiguredSearchParamStrategy;
+	/** Source package name for skRoutes imports in generated files. @default 'skroutes' */
+	skRoutesSource?: string;
 }
 
 /**
@@ -175,7 +177,8 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		errorURL = '/error',
 		routesDirectory = 'src/routes',
 		unconfiguredParams = 'deriveParams',
-		unconfiguredSearchParams = 'never'
+		unconfiguredSearchParams = 'never',
+		skRoutesSource = 'skroutes'
 	} = options;
 	let root: string;
 
@@ -789,7 +792,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		const usesStandardSchema = typeMapping.includes('StandardSchemaV1');
 
 		const standardSchemaImport = usesStandardSchema
-			? "import type { StandardSchemaV1 } from 'skroutes';"
+			? `import type { StandardSchemaV1 } from '${skRoutesSource}';`
 			: '';
 
 		return `// Auto-generated server-side config by skroutes-plugin
@@ -1119,14 +1122,14 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 		const usesStandardSchema = typeMapping.includes('StandardSchemaV1');
 
 		const standardSchemaImport = usesStandardSchema
-			? "import type { StandardSchemaV1 } from 'skroutes';"
+			? `import type { StandardSchemaV1 } from '${skRoutesSource}';`
 			: '';
 
 		return `// Auto-generated client-side config by skroutes-plugin
 // This file only imports from client-side files and can be safely used in the browser
 ${standardSchemaImport}
 ${detectedImports.join('\n')}
-import type { RouteConfig } from 'skroutes';
+import type { RouteConfig } from '${skRoutesSource}';
 
 // Import schema definitions from client-side page files only
 ${schemaImports.join('\n')}

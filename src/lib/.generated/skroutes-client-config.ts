@@ -1,8 +1,8 @@
 // Auto-generated client-side config by skroutes-plugin
 // This file only imports from client-side files and can be safely used in the browser
-import type { StandardSchemaV1 } from 'skroutes';
+import type { StandardSchemaV1 } from '../index.js';
 
-import type { RouteConfig } from 'skroutes';
+import type { RouteConfig } from '../index.js';
 
 // Import schema definitions from client-side page files only
 import { _routeConfig as routeConfig0 } from '../../../src/routes/[id]/+page';

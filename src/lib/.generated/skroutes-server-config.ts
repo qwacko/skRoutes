@@ -1,6 +1,6 @@
 // Auto-generated server-side config by skroutes-plugin
 // WARNING: This file imports from server files and should only be used server-side
-import type { StandardSchemaV1 } from 'skroutes';
+import type { StandardSchemaV1 } from '../index.js';
 
 
 // Import schema definitions from both client and server files
