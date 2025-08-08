@@ -8,6 +8,13 @@ import { _routeConfig as routeConfig0 } from '../../../src/routes/[id]/+page';
 import { _routeConfig as routeConfig2 } from '../../../src/routes/test-partial/[id]/+page';
 import { _routeConfig as routeConfig3 } from '../../../src/routes/test-search-only/+page';
 
+// Type-only imports from server files for better type inference
+import type { _routeConfig as serverRouteConfig1000 } from '../../../src/routes/api/users/[id]/+server';
+import type { _routeConfig as serverRouteConfig1001 } from '../../../src/routes/products/[id]/+page.server';
+import type { _routeConfig as serverRouteConfig1002 } from '../../../src/routes/server/[id]/+page.server';
+import type { _routeConfig as serverRouteConfig1003 } from '../../../src/routes/type-test/[id]/+page.server';
+import type { _routeConfig as serverRouteConfig1004 } from '../../../src/routes/users/[id]/+page.server';
+
 export const clientRouteConfig = {
   '/[id]': {
           paramsValidation: routeConfig0.paramsValidation,
@@ -246,15 +253,15 @@ export type RouteTypeMap = {
   '/test-no-validation': { params: {}; searchParams: {} };
   '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: {} };
   '/test-search-only': { params: {}; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
+  '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1000.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1000.searchParamsValidation> };
+  '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1001.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1001.searchParamsValidation> };
+  '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1002.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1002.searchParamsValidation> };
+  '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1003.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1003.searchParamsValidation> };
+  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.searchParamsValidation> };
   '/': { params: {}; searchParams: {} };
-  '/api/users/[id]': { params: { id: string }; searchParams: {} };
   '/error': { params: {}; searchParams: {} };
   '/optional/[[slug]]': { params: { slug?: string }; searchParams: {} };
-  '/products/[id]': { params: { id: string }; searchParams: {} };
-  '/server/[id]': { params: { id: string }; searchParams: {} };
-  '/store/[id]': { params: { id: string }; searchParams: {} };
-  '/type-test/[id]': { params: { id: string }; searchParams: {} };
-  '/users/[id]': { params: { id: string }; searchParams: {} }
+  '/store/[id]': { params: { id: string }; searchParams: {} }
 };
 
 // Convenience type aliases for accessing route param/search param types

@@ -90,6 +90,10 @@ interface SchemaDefinition {
 	hasParamsValidation?: boolean;
 	/** Whether this route exports searchParamsValidation */
 	hasSearchParamsValidation?: boolean;
+	/** Whether this is a server file (+page.server.ts, +server.ts) */
+	isServerFile?: boolean;
+	/** File type for better tracking */
+	fileType?: 'client' | 'server' | 'api';
 }
 
 /**
@@ -558,10 +562,36 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		);
 		const routeKeys = uniqueRouteKeys.join(' | ');
 
-		// Generate type mappings for each route (server has complete view)
-		const serverTypeMapping = allSchemas
-			.map((schema, index) => {
-				const schemaAlias = `routeConfig${index}`;
+		// Create a map to track the best schema for each route (prefer server files with validation)
+		const routeBestSchema = new Map<string, SchemaDefinition>();
+		
+		// First pass: collect all schemas and prioritize by type and validation presence
+		allSchemas.forEach(schema => {
+			const existing = routeBestSchema.get(schema.routePath);
+			
+			if (!existing) {
+				routeBestSchema.set(schema.routePath, schema);
+			} else {
+				// Prefer schemas with more validation, then server files over client files
+				const currentPriority = (schema.hasParamsValidation ? 2 : 0) + (schema.hasSearchParamsValidation ? 1 : 0) + (schema.isServerFile ? 0.5 : 0);
+				const existingPriority = (existing.hasParamsValidation ? 2 : 0) + (existing.hasSearchParamsValidation ? 1 : 0) + (existing.isServerFile ? 0.5 : 0);
+				
+				if (currentPriority > existingPriority) {
+					routeBestSchema.set(schema.routePath, schema);
+				}
+			}
+		});
+
+		// Generate type mappings for each route using the best available schema
+		const serverTypeMapping: string[] = [];
+		let schemaIndex = 0;
+		
+		allSchemas.forEach((schema, originalIndex) => {
+			const bestSchema = routeBestSchema.get(schema.routePath);
+			
+			// Only generate type mapping if this is the best schema for this route
+			if (bestSchema === schema) {
+				const schemaAlias = `routeConfig${originalIndex}`;
 
 				if (schema.routeConfig) {
 					// Use proper type inference with conditional logic, respecting configured strategies
@@ -573,11 +603,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
 						: smartTypes.searchParamsType;
 
-					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
+					serverTypeMapping.push(`  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`);
 				}
-				return null;
-			})
-			.filter(Boolean);
+			}
+		});
 
 		// Add base config type mappings
 		const baseTypeMapping = Object.keys(baseConfig).map((routePath) => {
@@ -630,9 +659,11 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 	function generateClientConfigModule(): string {
 		const clientSchemas = scanForSchemas(); // Only client-side files
+		const allServerSchemas = scanForAllSchemas(); // Both client and server files
 		const allRoutes = getAllRoutes();
 
 		const schemaImports: string[] = [];
+		const typeOnlyImports: string[] = [];
 		const configEntries: string[] = [];
 
 		// Add base config entries first
@@ -642,6 +673,26 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 		// Add custom imports
 		const detectedImports: string[] = [...imports];
+
+		// Create a map of routes to their best server-side schemas for type information
+		const routeToServerSchema = new Map<string, SchemaDefinition>();
+		
+		allServerSchemas.forEach(schema => {
+			if (schema.isServerFile && (schema.hasParamsValidation || schema.hasSearchParamsValidation)) {
+				const existing = routeToServerSchema.get(schema.routePath);
+				if (!existing) {
+					routeToServerSchema.set(schema.routePath, schema);
+				} else {
+					// Prefer schemas with more validation
+					const currentPriority = (schema.hasParamsValidation ? 2 : 0) + (schema.hasSearchParamsValidation ? 1 : 0);
+					const existingPriority = (existing.hasParamsValidation ? 2 : 0) + (existing.hasSearchParamsValidation ? 1 : 0);
+					
+					if (currentPriority > existingPriority) {
+						routeToServerSchema.set(schema.routePath, schema);
+					}
+				}
+			}
+		});
 
 		// Process routes with client-side configuration only
 		clientSchemas.forEach((schema, index) => {
@@ -706,20 +757,56 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 		);
 		const routeKeys = uniqueRouteKeys.join(' | ');
 
-		// Generate type mappings for each route
+		// Add type-only imports for server schemas that have better validation
+		const serverSchemaAliases = new Map<string, string>();
+		let serverSchemaIndex = 1000; // Use high numbers to avoid conflicts
+		
+		routeToServerSchema.forEach((serverSchema, routePath) => {
+			const serverAlias = `serverRouteConfig${serverSchemaIndex}`;
+			const relativePath = generateRelativeImportPath(serverSchema.filePath);
+			
+			typeOnlyImports.push(`import type { ${serverSchema.routeConfig} as ${serverAlias} } from '${relativePath}';`);
+			serverSchemaAliases.set(routePath, serverAlias);
+			serverSchemaIndex++;
+		});
+
+		// Generate type mappings for each route, preferring server schema types when available
 		const clientTypeMapping = clientSchemas
 			.map((schema, index) => {
 				const schemaAlias = `routeConfig${index}`;
+				const serverSchemaAlias = serverSchemaAliases.get(schema.routePath);
+				const serverSchema = routeToServerSchema.get(schema.routePath);
 
 				if (schema.routeConfig) {
 					// Use proper type inference with conditional logic, respecting configured strategies
 					const smartTypes = generateSmartParamTypes(schema.routePath);
-					const paramsType = schema.hasParamsValidation
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
-						: smartTypes.paramsType;
-					const searchParamsType = schema.hasSearchParamsValidation
-						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
-						: smartTypes.searchParamsType;
+					
+					// Prefer server schema types if available and better, otherwise use client schema types
+					let paramsType: string;
+					let searchParamsType: string;
+					
+					if (serverSchema && serverSchemaAlias) {
+						// Use server schema types when server has better validation
+						paramsType = serverSchema.hasParamsValidation && !schema.hasParamsValidation
+							? `StandardSchemaV1.InferOutput<typeof ${serverSchemaAlias}.paramsValidation>`
+							: schema.hasParamsValidation
+								? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
+								: smartTypes.paramsType;
+								
+						searchParamsType = serverSchema.hasSearchParamsValidation && !schema.hasSearchParamsValidation
+							? `StandardSchemaV1.InferOutput<typeof ${serverSchemaAlias}.searchParamsValidation>`
+							: schema.hasSearchParamsValidation
+								? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
+								: smartTypes.searchParamsType;
+					} else {
+						// No server schema or not better, use client schema
+						paramsType = schema.hasParamsValidation
+							? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
+							: smartTypes.paramsType;
+						searchParamsType = schema.hasSearchParamsValidation
+							? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
+							: smartTypes.searchParamsType;
+					}
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
 				}
@@ -732,15 +819,41 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 			return `  '${routePath}': { params: Record<string, string>; searchParams: Record<string, string | string[]> }`;
 		});
 
-		// Add smart default type mappings for routes without explicit config
+		// Add type mappings for routes that don't have client configs but might have server configs
+		const serverOnlyRoutes = Array.from(routeToServerSchema.keys()).filter(
+			routePath => !clientSchemas.some(schema => schema.routePath === routePath)
+		);
+		
+		const serverOnlyTypeMapping = serverOnlyRoutes.map((routePath) => {
+			const serverSchema = routeToServerSchema.get(routePath);
+			const serverSchemaAlias = serverSchemaAliases.get(routePath);
+			
+			if (serverSchema && serverSchemaAlias) {
+				// Use server schema types for routes without client config
+				const paramsType = serverSchema.hasParamsValidation
+					? `StandardSchemaV1.InferOutput<typeof ${serverSchemaAlias}.paramsValidation>`
+					: generateSmartParamTypes(routePath).paramsType;
+				const searchParamsType = serverSchema.hasSearchParamsValidation
+					? `StandardSchemaV1.InferOutput<typeof ${serverSchemaAlias}.searchParamsValidation>`
+					: generateSmartParamTypes(routePath).searchParamsType;
+				
+				return `  '${routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
+			}
+			return null;
+		}).filter(Boolean);
+
+		// Add smart default type mappings for routes without any explicit config
 		const smartTypeMapping = allRoutes
-			.filter((route) => !routesWithClientConfig.has(route))
+			.filter((route) => 
+				!routesWithClientConfig.has(route) && 
+				!routeToServerSchema.has(route)
+			)
 			.map((routePath) => {
 				const smartTypes = generateSmartParamTypes(routePath);
 				return `  '${routePath}': { params: ${smartTypes.paramsType}; searchParams: ${smartTypes.searchParamsType} }`;
 			});
 
-		const typeMapping = [...baseTypeMapping, ...clientTypeMapping, ...smartTypeMapping].join(';\n');
+		const typeMapping = [...baseTypeMapping, ...clientTypeMapping, ...serverOnlyTypeMapping, ...smartTypeMapping].join(';\n');
 
 		// Check if StandardSchemaV1 is used in the type mappings (the only place it's actually needed)
 		const usesStandardSchema = typeMapping.includes('StandardSchemaV1');
@@ -754,6 +867,9 @@ ${detectedImports.join('\n')}
 
 // Import schema definitions from client-side page files only
 ${schemaImports.join('\n')}
+
+// Type-only imports from server files for better type inference
+${typeOnlyImports.join('\n')}
 
 export const clientRouteConfig = {
   ${configEntries.join(',\n  ')}
@@ -851,12 +967,21 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
 						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
 
+						// Determine file type and if it's server-side
+						const isServerFile = entry.includes('.server.') || entry.includes('+server.');
+						const fileType: 'client' | 'server' | 'api' = 
+							entry.includes('+server.') ? 'api' :
+							isServerFile ? 'server' :
+							'client';
+
 						schemas.push({
 							routePath,
 							filePath: fullPath,
 							routeConfig: '_routeConfig',
 							hasParamsValidation,
-							hasSearchParamsValidation
+							hasSearchParamsValidation,
+							isServerFile,
+							fileType
 						});
 					}
 				}
