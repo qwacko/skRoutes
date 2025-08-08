@@ -55,14 +55,14 @@ export const serverRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
           searchParamsValidation: {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -71,14 +71,14 @@ export const serverRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
           searchParamsValidation: {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -100,7 +100,7 @@ export const serverRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -122,7 +122,7 @@ export const serverRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         }
@@ -142,10 +142,10 @@ export type ServerRouteTypeMap = {
   '/test-search-only': { params: Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig6.searchParamsValidation> };
   '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig7.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig7.searchParamsValidation> };
   '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig8.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig8.searchParamsValidation> };
-  '/': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/error': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/optional/[[slug]]': { params: { slug?: string }; searchParams: Record<string, unknown> };
-  '/store/[id]': { params: { id: string }; searchParams: Record<string, unknown> }
+  '/': { params: {}; searchParams: {} };
+  '/error': { params: {}; searchParams: {} };
+  '/optional/[[slug]]': { params: { slug?: string }; searchParams: {} };
+  '/store/[id]': { params: { id: string }; searchParams: {} }
 };
 
 // Convenience type aliases for accessing route param/search param types

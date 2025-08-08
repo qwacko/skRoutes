@@ -30,14 +30,14 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
           searchParamsValidation: {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -59,7 +59,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -68,14 +68,14 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
           searchParamsValidation: {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -97,7 +97,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -119,7 +119,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -141,7 +141,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -163,7 +163,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -185,7 +185,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         },
@@ -207,7 +207,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: v || {} })
+          validate: (v: any) => ({ value: {} })
         }
       },
         }
@@ -222,15 +222,15 @@ export type RouteTypeMap = {
   '/test-no-validation': { params: Record<string, string>; searchParams: Record<string, unknown> };
   '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: Record<string, unknown> };
   '/test-search-only': { params: Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
-  '/': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/api/users/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
-  '/error': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/optional/[[slug]]': { params: { slug?: string }; searchParams: Record<string, unknown> };
-  '/products/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
-  '/server/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
-  '/store/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
-  '/type-test/[id]': { params: { id: string }; searchParams: Record<string, unknown> };
-  '/users/[id]': { params: { id: string }; searchParams: Record<string, unknown> }
+  '/': { params: {}; searchParams: {} };
+  '/api/users/[id]': { params: { id: string }; searchParams: {} };
+  '/error': { params: {}; searchParams: {} };
+  '/optional/[[slug]]': { params: { slug?: string }; searchParams: {} };
+  '/products/[id]': { params: { id: string }; searchParams: {} };
+  '/server/[id]': { params: { id: string }; searchParams: {} };
+  '/store/[id]': { params: { id: string }; searchParams: {} };
+  '/type-test/[id]': { params: { id: string }; searchParams: {} };
+  '/users/[id]': { params: { id: string }; searchParams: {} }
 };
 
 // Convenience type aliases for accessing route param/search param types
