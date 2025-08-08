@@ -513,12 +513,14 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 					);
 				}
 
+				// Use configured fallback strategies when validators are missing from _routeConfig
+				const smartParams = generateSmartParamValidation(schema.routePath);
 				const paramsValidation = schema.hasParamsValidation
 					? `${schemaAlias}.paramsValidation`
-					: 'undefined';
+					: smartParams.paramsValidation;
 				const searchParamsValidation = schema.hasSearchParamsValidation
 					? `${schemaAlias}.searchParamsValidation`
-					: 'undefined';
+					: smartParams.searchParamsValidation;
 
 				const entry = `'${schema.routePath}': {
           paramsValidation: ${paramsValidation},
@@ -562,13 +564,14 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 				const schemaAlias = `routeConfig${index}`;
 
 				if (schema.routeConfig) {
-					// Use proper type inference with conditional logic
+					// Use proper type inference with conditional logic, respecting configured strategies
+					const smartTypes = generateSmartParamTypes(schema.routePath);
 					const paramsType = schema.hasParamsValidation
 						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
-						: 'Record<string, string>';
+						: smartTypes.paramsType;
 					const searchParamsType = schema.hasSearchParamsValidation
 						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
-						: 'Record<string, unknown>';
+						: smartTypes.searchParamsType;
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
 				}
@@ -658,12 +661,14 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					);
 				}
 
+				// Use configured fallback strategies when validators are missing from _routeConfig
+				const smartParams = generateSmartParamValidation(schema.routePath);
 				const paramsValidation = schema.hasParamsValidation
 					? `${schemaAlias}.paramsValidation`
-					: 'undefined';
+					: smartParams.paramsValidation;
 				const searchParamsValidation = schema.hasSearchParamsValidation
 					? `${schemaAlias}.searchParamsValidation`
-					: 'undefined';
+					: smartParams.searchParamsValidation;
 
 				const entry = `'${schema.routePath}': {
           paramsValidation: ${paramsValidation},
@@ -707,13 +712,14 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 				const schemaAlias = `routeConfig${index}`;
 
 				if (schema.routeConfig) {
-					// Use proper type inference with conditional logic
+					// Use proper type inference with conditional logic, respecting configured strategies
+					const smartTypes = generateSmartParamTypes(schema.routePath);
 					const paramsType = schema.hasParamsValidation
 						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`
-						: 'Record<string, string>';
+						: smartTypes.paramsType;
 					const searchParamsType = schema.hasSearchParamsValidation
 						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`
-						: 'Record<string, unknown>';
+						: smartTypes.searchParamsType;
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
 				}

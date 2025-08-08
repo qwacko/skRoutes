@@ -14,15 +14,39 @@ export const clientRouteConfig = {
           searchParamsValidation: routeConfig0.searchParamsValidation,
         },
   '/test-no-validation': {
-          paramsValidation: undefined,
-          searchParamsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
         },
   '/test-partial/[id]': {
           paramsValidation: routeConfig2.paramsValidation,
-          searchParamsValidation: undefined,
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
         },
   '/test-search-only': {
-          paramsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
           searchParamsValidation: routeConfig3.searchParamsValidation,
         },
   '/': {
@@ -219,9 +243,9 @@ export type RouteKeys = '/[id]' | '/test-no-validation' | '/test-partial/[id]' |
 // Export type mapping for schema inference
 export type RouteTypeMap = {
   '/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig0.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig0.searchParamsValidation> };
-  '/test-no-validation': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: Record<string, unknown> };
-  '/test-search-only': { params: Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
+  '/test-no-validation': { params: {}; searchParams: {} };
+  '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: {} };
+  '/test-search-only': { params: {}; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
   '/': { params: {}; searchParams: {} };
   '/api/users/[id]': { params: { id: string }; searchParams: {} };
   '/error': { params: {}; searchParams: {} };

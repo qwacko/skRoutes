@@ -31,15 +31,39 @@ export const serverRouteConfig = {
           searchParamsValidation: routeConfig3.searchParamsValidation,
         },
   '/test-no-validation': {
-          paramsValidation: undefined,
-          searchParamsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
         },
   '/test-partial/[id]': {
           paramsValidation: routeConfig5.paramsValidation,
-          searchParamsValidation: undefined,
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
         },
   '/test-search-only': {
-          paramsValidation: undefined,
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
           searchParamsValidation: routeConfig6.searchParamsValidation,
         },
   '/type-test/[id]': {
@@ -137,9 +161,9 @@ export type ServerRouteTypeMap = {
   '/api/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig1.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig1.searchParamsValidation> };
   '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig2.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig2.searchParamsValidation> };
   '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig3.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig3.searchParamsValidation> };
-  '/test-no-validation': { params: Record<string, string>; searchParams: Record<string, unknown> };
-  '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig5.paramsValidation>; searchParams: Record<string, unknown> };
-  '/test-search-only': { params: Record<string, string>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig6.searchParamsValidation> };
+  '/test-no-validation': { params: {}; searchParams: {} };
+  '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig5.paramsValidation>; searchParams: {} };
+  '/test-search-only': { params: {}; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig6.searchParamsValidation> };
   '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig7.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig7.searchParamsValidation> };
   '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig8.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig8.searchParamsValidation> };
   '/': { params: {}; searchParams: {} };
