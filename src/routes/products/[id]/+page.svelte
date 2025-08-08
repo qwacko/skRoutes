@@ -47,7 +47,7 @@
 		updateParams({ searchParams: { color } });
 	}
 
-	function updateSize(size: string) {
+	function updateSize(size: 'S' | 'M' | 'L' | 'XL') {
 		updateParams({ searchParams: { size } });
 	}
 
@@ -133,9 +133,6 @@
 			<div class="filter-group">
 				<h3>Size</h3>
 				<div class="size-options">
-					<button onclick={() => updateSize('')} class="size-button" class:active={!currentSize}>
-						All Sizes
-					</button>
 					{#each sizes as size}
 						<button
 							onclick={() => updateSize(size)}
