@@ -6,6 +6,7 @@ import {
 	createUrlGenerator,
 	createUpdateParams,
 	type RouteConfig,
+	type SingleRouteConfig,
 	type UrlGeneratorInput,
 	type UrlGeneratorResult,
 	type ParamsType,
@@ -16,7 +17,7 @@ import {
 import { throttledSync } from './helpers.svelte.js';
 import { isEqual } from 'lodash-es';
 
-export type { RouteConfig, UrlGeneratorInput, UrlGeneratorResult };
+export type { RouteConfig, SingleRouteConfig, UrlGeneratorInput, UrlGeneratorResult };
 
 /**
  * Defines how route updates should be handled when parameters change.
