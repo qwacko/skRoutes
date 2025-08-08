@@ -1,6 +1,6 @@
 {
 	"name": "skroutes",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && pnpm run package",
@@ -29,8 +29,8 @@
 		"!dist/**/*.spec.*"
 	],
 	"peerDependencies": {
-		"svelte": "^5.0.0",
-		"@sveltejs/kit": "^2.0.0"
+		"@sveltejs/kit": "^2.0.0",
+		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.0.1",
@@ -43,6 +43,7 @@
 		"eslint": "^9.32.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.11.0",
+		"jsdom": "^26.1.0",
 		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
 		"publint": "^0.3.12",

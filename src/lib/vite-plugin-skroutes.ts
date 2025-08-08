@@ -15,6 +15,8 @@ interface SchemaDefinition {
 	routePath: string;
 	filePath: string;
 	routeConfig?: string;
+	hasParamsValidation?: boolean;
+	hasSearchParamsValidation?: boolean;
 }
 
 export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
@@ -230,9 +232,16 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
 				);
 
+				const paramsValidation = schema.hasParamsValidation 
+					? `${schemaAlias}.paramsValidation` 
+					: 'undefined';
+				const searchParamsValidation = schema.hasSearchParamsValidation 
+					? `${schemaAlias}.searchParamsValidation` 
+					: 'undefined';
+
 				const entry = `'${schema.routePath}': {
-          paramsValidation: ${schemaAlias}.paramsValidation,
-          searchParamsValidation: ${schemaAlias}.searchParamsValidation,
+          paramsValidation: ${paramsValidation},
+          searchParamsValidation: ${searchParamsValidation},
         }`;
 
 				configEntries.push(entry);
@@ -272,9 +281,13 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 				const schemaAlias = `routeConfig${index}`;
 
 				if (schema.routeConfig) {
-					// Use proper type inference
-					const paramsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`;
-					const searchParamsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`;
+					// Use proper type inference with conditional logic
+					const paramsType = schema.hasParamsValidation 
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>` 
+						: 'Record<string, string>';
+					const searchParamsType = schema.hasSearchParamsValidation 
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>` 
+						: 'Record<string, unknown>';
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
 				}
@@ -354,9 +367,16 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					`import { ${schema.routeConfig} as ${schemaAlias} } from '${relativePath}';`
 				);
 
+				const paramsValidation = schema.hasParamsValidation 
+					? `${schemaAlias}.paramsValidation` 
+					: 'undefined';
+				const searchParamsValidation = schema.hasSearchParamsValidation 
+					? `${schemaAlias}.searchParamsValidation` 
+					: 'undefined';
+
 				const entry = `'${schema.routePath}': {
-          paramsValidation: ${schemaAlias}.paramsValidation,
-          searchParamsValidation: ${schemaAlias}.searchParamsValidation,
+          paramsValidation: ${paramsValidation},
+          searchParamsValidation: ${searchParamsValidation},
         }`;
 
 				configEntries.push(entry);
@@ -396,9 +416,13 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 				const schemaAlias = `routeConfig${index}`;
 
 				if (schema.routeConfig) {
-					// Use proper type inference
-					const paramsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>`;
-					const searchParamsType = `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>`;
+					// Use proper type inference with conditional logic
+					const paramsType = schema.hasParamsValidation 
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.paramsValidation>` 
+						: 'Record<string, string>';
+					const searchParamsType = schema.hasSearchParamsValidation 
+						? `StandardSchemaV1.InferOutput<typeof ${schemaAlias}.searchParamsValidation>` 
+						: 'Record<string, unknown>';
 
 					return `  '${schema.routePath}': { params: ${paramsType}; searchParams: ${searchParamsType} }`;
 				}
@@ -476,10 +500,16 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					const routeConfigMatch = content.match(routeConfigPattern);
 
 					if (routeConfigMatch) {
+						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
+						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
+						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
+						
 						schemas.push({
 							routePath,
 							filePath: fullPath,
-							routeConfig: '_routeConfig'
+							routeConfig: '_routeConfig',
+							hasParamsValidation,
+							hasSearchParamsValidation
 						});
 					}
 				}
@@ -515,10 +545,16 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 					const routeConfigMatch = content.match(routeConfigPattern);
 
 					if (routeConfigMatch) {
+						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
+						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
+						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
+						
 						schemas.push({
 							routePath,
 							filePath: fullPath,
-							routeConfig: '_routeConfig'
+							routeConfig: '_routeConfig',
+							hasParamsValidation,
+							hasSearchParamsValidation
 						});
 					}
 				}

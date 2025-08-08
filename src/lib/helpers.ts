@@ -102,6 +102,11 @@ export interface RouteConfig {
 	[address: string]: RouteDetails;
 }
 
+export interface SingleRouteConfig {
+	paramsValidation?: StandardSchemaV1<unknown, unknown>;
+	searchParamsValidation?: StandardSchemaV1<unknown, unknown>;
+}
+
 export type ParamsType<Config extends RouteConfig, Address extends keyof Config> =
 	Config[Address]['paramsValidation'] extends StandardSchemaV1<infer T, unknown>
 		? T

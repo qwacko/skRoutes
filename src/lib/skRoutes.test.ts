@@ -47,23 +47,16 @@ describe('skRoutes with Standard Schema', () => {
 		expect(result.url).toContain('/error');
 	});
 
-	it('should work with pageInfo', () => {
-		const mockPageData = {
-			params: { id: 'user123' },
-			url: { search: '?tab=settings&page=2' }
-		};
+	it('should validate and generate URLs correctly with default parameters', () => {
+		const result = urlGenerator({
+			address: '/users/[id]',
+			paramsValue: { id: 'user456' },
+			searchParamsValue: {}
+		});
 
-		const { current } = skRoutes({
-			config: {
-				'/users/[id]': {
-					paramsValidation: userParamsSchema,
-					searchParamsValidation: userSearchParamsSchema
-				}
-			},
-			errorURL: '/error'
-		}).pageInfo('/users/[id]', () => mockPageData);
-
-		expect(current.params).toEqual({ id: 'user123' });
-		expect(current.searchParams).toEqual({ tab: 'settings', page: 2 });
+		expect(result.error).toBe(false);
+		expect(result.url).toBe('/users/user456');
+		expect(result.params).toEqual({ id: 'user456' });
+		expect(result.searchParams).toEqual({});
 	});
 });

@@ -3,6 +3,7 @@ import {
 	createUrlGenerator,
 	createUpdateParams,
 	type RouteConfig,
+	type SingleRouteConfig,
 	type ParamsType,
 	type SearchParamsType
 } from './helpers.js';
@@ -12,6 +13,12 @@ import {
  * Extends the base RouteConfig for use in server-side contexts.
  */
 export interface ServerRouteConfig extends RouteConfig {}
+
+/**
+ * Single server-side route configuration interface.
+ * Represents the configuration for a single route in server-side contexts.
+ */
+export interface SingleServerRouteConfig extends SingleRouteConfig {}
 
 /**
  * Creates a server-side URL generation and route information system for SvelteKit applications.
