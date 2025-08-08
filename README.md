@@ -2,6 +2,19 @@
 
 A TypeScript-first SvelteKit library for type-safe URL generation and route parameter validation using Standard Schema.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Features](#features)
+- [Quick Start](#quick-start)
+  - [Vite Plugin Setup (Recommended)](#4-vite-plugin-for-auto-generated-routes-recommended)
+  - [Manual Configuration](#manual-configuration)
+- [Advanced Usage](#advanced-usage)
+- [Vite Plugin Architecture](#vite-plugin-architecture)
+- [API Reference](#api-reference)  
+- [Migration Guide](#migration-guide)
+- [Contributing](#contributing)
+
 ## Installation
 
 ```bash
@@ -12,19 +25,33 @@ pnpm add skroutes
 
 ## Features
 
-- 🔒 **Full Type Safety**: Route parameters and search parameters are fully typed based on your schema configuration
+### 🚀 **Auto-Generation & Zero Config**
+- 🔄 **Vite Plugin Integration**: Automatically discovers routes from your SvelteKit file structure
+- 🎯 **Zero Manual Configuration**: No need to manually register routes - just add `_routeConfig` exports
+- ⚡ **Hot Reload**: Instant type updates when you modify route files
+- 🏗️ **Smart Type Generation**: Generates precise TypeScript types from your validation schemas
+- 🌍 **Dual Config System**: Optimized client/server configurations for different environments
+
+### 🔒 **Type Safety & Validation**
 - 🏷️ **Standard Schema Support**: Works with Zod, Valibot, ArkType, and any Standard Schema-compliant library  
 - 📝 **Type-safe URL generation** with automatic validation and proper return types
-- 🛠️ **Easy URL manipulation** with strongly typed parameter updates
-- 🎨 **Reactive state management** with throttled URL updates and Svelte 5 runes support
+- 🚦 **Compile-time Route Validation**: TypeScript catches invalid routes and parameter types
+- 🎯 **Parameter Strategy System**: Flexible handling of unconfigured routes (`allowAll`, `never`, `simple`, `strict`, `deriveParams`)
+- 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed
+
+### 🎨 **Reactive State Management**
+- 🛠️ **Easy URL manipulation** with strongly typed parameter updates  
 - 🔄 **Bi-directional synchronization**: Changes flow seamlessly between URL state and component state
 - ⚡ **Throttled updates**: Built-in throttling prevents excessive URL changes during rapid state updates
 - 🎯 **Direct binding**: Bind form inputs directly to URL parameters with automatic synchronization
-- 🚦 **TypeScript validation** of route addresses with compile-time checking
 - 💾 **Unsaved changes detection**: Track when internal state differs from URL state
 - 🔄 **Reset functionality**: Easily revert changes back to the current URL state
+
+### 🛠️ **Developer Experience**
+- 🎨 **Svelte 5 Runes Support**: Full compatibility with modern Svelte reactive patterns
 - 📊 **Debug mode**: Comprehensive logging to understand state synchronization flow
-- 🎯 **Non-Optional Results**: `params` and `searchParams` are never undefined - no optional chaining needed!
+- 🔧 **Flexible Configuration**: Extensive plugin options for customization
+- 📁 **Clean File Organization**: Co-locate validation with route logic
 
 ## Quick Start
 
@@ -153,12 +180,14 @@ const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searc
 </div>
 ```
 
-### 4. Auto-Generated Routes with Vite Plugin
+### 4. Vite Plugin for Auto-Generated Routes (Recommended)
 
-For the best developer experience, use the Vite plugin to automatically generate typed routes:
+**The Vite plugin is the recommended approach** for using skRoutes. It automatically scans your SvelteKit route files and generates fully-typed configurations with zero manual setup.
 
-```javascript
-// vite.config.js
+#### Plugin Setup
+
+```typescript
+// vite.config.ts
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { skRoutesPlugin } from 'skroutes/plugin';
@@ -167,25 +196,181 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		skRoutesPlugin({
+			// Required: URL to redirect to when validation fails
+			errorURL: '/error',
+			
+			// Optional: Directory containing SvelteKit routes (relative to project root)
+			routesDirectory: 'src/routes', // default: 'src/routes'
+			
+			// Optional: Additional imports for your validation schemas
 			imports: ["import { z } from 'zod';"],
-			errorURL: '/error'
+			
+			// Optional: How to handle routes without explicit validation
+			unconfiguredParams: 'deriveParams', // 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams' (default)
+			unconfiguredSearchParams: 'never', // 'allowAll' | 'never' | 'simple' | 'strict' (default)
+			
+			// Optional: Custom paths for generated files
+			clientOutputPath: 'src/lib/.generated/skroutes-client-config.ts',
+			serverOutputPath: 'src/lib/.generated/skroutes-server-config.ts',
+			
+			// Optional: Include server-side files in scanning
+			includeServerFiles: true,
+			
+			// Optional: Manual route configs to include
+			baseConfig: {
+				'/api/health': { 
+					paramsValidation: undefined, 
+					searchParamsValidation: undefined 
+				}
+			}
 		})
 	]
 });
 ```
 
-Then use the auto-generated routes:
+#### Configure Route Validation
+
+Add validation to your route files using `_routeConfig`:
 
 ```typescript
-// Import from the auto-generated file
-import { urlGenerator, pageInfo } from '$lib/auto-skroutes';
+// src/routes/users/[id]/+page.ts
+import { z } from 'zod';
+
+// Export validation configuration
+export const _routeConfig = {
+	paramsValidation: z.object({
+		id: z.string().uuid()
+	}).parse,
+	searchParamsValidation: z.object({
+		tab: z.enum(['profile', 'settings']).optional(),
+		page: z.coerce.number().positive().optional()
+	}).parse
+};
+
+// Your normal load function
+export async function load({ params, url }) {
+	// params.id is automatically validated as UUID
+	// url.searchParams are automatically validated
+	return {
+		user: await fetchUser(params.id)
+	};
+}
+```
+
+```typescript
+// src/routes/products/[category]/+page.server.ts
+import { z } from 'zod';
+
+export const _routeConfig = {
+	paramsValidation: z.object({
+		category: z.enum(['electronics', 'clothing', 'books'])
+	}).parse,
+	searchParamsValidation: z.object({
+		sort: z.enum(['price', 'name', 'rating']).optional(),
+		minPrice: z.coerce.number().min(0).optional(),
+		maxPrice: z.coerce.number().min(0).optional()
+	}).parse
+};
+
+export async function load({ params, url }) {
+	// Fully typed and validated parameters
+	return {
+		products: await fetchProducts(params.category, {
+			sort: url.searchParams.get('sort'),
+			minPrice: url.searchParams.get('minPrice'),
+			maxPrice: url.searchParams.get('maxPrice')
+		})
+	};
+}
+```
+
+#### Use Auto-Generated Routes
+
+The plugin generates two configuration files:
+
+```typescript
+// Import the appropriate config for your environment
+import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-client-config'; // Client-side
+// or
+import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-server-config'; // Server-side (has access to all routes)
 
 // All your routes are automatically typed and available!
 const userUrl = urlGenerator({
-	address: '/users/[id]', // ✅ Auto-completed and type-checked
-	paramsValue: { id: 'user123' }
+	address: '/users/[id]', // ✅ Auto-completed from your route files
+	paramsValue: { id: 'user123' }, // ✅ TypeScript knows this must be a UUID
+	searchParamsValue: { tab: 'profile' } // ✅ TypeScript validates enum values
+});
+
+// Perfect type inference for all discovered routes
+const productUrl = urlGenerator({
+	address: '/products/[category]',
+	paramsValue: { category: 'electronics' }, // ✅ Only allows valid enum values
+	searchParamsValue: { sort: 'price', minPrice: 50 }
 });
 ```
+
+#### Parameter Handling Strategies
+
+The plugin provides flexible strategies for handling routes without explicit validation:
+
+```typescript
+skRoutesPlugin({
+	// Strategy for route parameters [id], [slug], etc.
+	unconfiguredParams: 'never', // No parameters allowed
+	// unconfiguredParams: 'allowAll', // Accept any string parameters
+	// unconfiguredParams: 'simple', // Optional string parameters
+	// unconfiguredParams: 'strict', // Compile-time error (prevents usage)
+	// unconfiguredParams: 'deriveParams', // Auto-derive from route path (NEW!)
+	
+	// Strategy for search parameters ?page=1&sort=name
+	unconfiguredSearchParams: 'simple', // Optional string/array parameters  
+	// unconfiguredSearchParams: 'never', // No search parameters allowed
+	// unconfiguredSearchParams: 'allowAll', // Accept any search parameters
+	// unconfiguredSearchParams: 'strict', // Compile-time error (prevents usage)
+	
+	errorURL: '/error'
+});
+```
+
+**Strategy Examples:**
+
+- **`'never'`**: Routes generate `{}` types - no unconfigured parameters allowed
+- **`'allowAll'`**: Routes generate `Record<string, string>` - accepts any parameters  
+- **`'simple'`**: Routes generate `{ [key: string]?: string }` - optional parameters
+- **`'strict'`**: Routes generate `never` - TypeScript prevents usage entirely
+- **`'deriveParams'` (NEW!)**: Automatically derives exact parameter types from route paths
+  - `/users/[id]` → `{ id: string }`
+  - `/posts/[slug]/comments/[[page]]` → `{ slug: string; page?: string }`
+  - `/products` → `{}` (no parameters)
+
+**Why use `deriveParams`?**
+```typescript
+// With 'deriveParams', you get automatic type safety without manual configuration
+// Route: /users/[id]/posts/[[page]]
+const userPostsUrl = urlGenerator('/users/[id]/posts/[[page]]', {
+  params: { 
+    id: '123',        // ✅ Required - TypeScript enforces this
+    page: '2'         // ✅ Optional - inferred from [[page]]
+  }
+});
+
+// TypeScript catches errors automatically:
+const badUrl = urlGenerator('/users/[id]/posts/[[page]]', {
+  params: { 
+    // ❌ Error: Property 'id' is missing - TypeScript catches this!
+    page: '2'
+  }
+});
+```
+
+#### Hot Reload & Development
+
+The plugin automatically watches your route files and regenerates configurations when:
+- You add/remove route files
+- You modify `_routeConfig` exports
+- You change validation schemas
+
+This provides seamless development experience with instant TypeScript feedback.
 
 ## Advanced Usage
 
@@ -340,6 +525,223 @@ export const routes = skRoutes({
 });
 ```
 
+## Vite Plugin Architecture
+
+### How the Plugin Works
+
+The skRoutes Vite plugin provides a sophisticated auto-generation system that eliminates manual configuration:
+
+#### 1. **Route Discovery**
+```
+src/routes/
+├── +page.ts                    → '/' route
+├── users/[id]/
+│   ├── +page.ts               → '/users/[id]' route  
+│   └── +page.server.ts        → '/users/[id]' server config
+├── products/[category]/
+│   ├── +page.svelte          → '/products/[category]' route
+│   └── +server.ts            → '/products/[category]' API endpoint
+└── api/health/
+    └── +server.ts            → '/api/health' API route
+```
+
+The plugin automatically scans your `src/routes` directory and discovers:
+- Page routes (`+page.ts`, `+page.svelte`) 
+- Server routes (`+page.server.ts`, `+server.ts`)
+- API endpoints (`+server.ts`)
+- Route parameters from directory structure (`[id]`, `[[slug]]`)
+
+#### 2. **Configuration Detection**
+
+The plugin looks for `_routeConfig` exports in your route files:
+
+```typescript
+// Detected automatically ✅
+export const _routeConfig = {
+	paramsValidation: z.object({ id: z.string() }).parse,
+	searchParamsValidation: z.object({ tab: z.string().optional() }).parse
+};
+
+// Also detects partial configs ✅
+export const _routeConfig = {
+	paramsValidation: z.object({ id: z.string() }).parse
+	// searchParamsValidation will use the configured strategy
+};
+
+// Routes without _routeConfig use configured strategies ✅
+```
+
+#### 3. **Smart Type Generation**
+
+For each route, the plugin generates appropriate types based on:
+
+**Explicit Configuration**: Uses your validation schemas for precise typing
+```typescript
+// Your schema
+z.object({ id: z.string().uuid() })
+
+// Generated type  
+{ id: string } // with UUID validation at runtime
+```
+
+**Route Parameters**: Automatically detects from file structure
+```typescript
+// File: src/routes/posts/[slug]/comments/[id]/+page.ts
+// Generated type
+{ slug: string; id: string }
+
+// File: src/routes/blog/[[year]]/+page.ts  
+// Generated type
+{ year?: string } // Optional parameter
+```
+
+**Configured Strategies**: Uses your strategy for unconfigured routes
+```typescript
+// Strategy: 'never'
+// Generated type for routes without _routeConfig
+{ params: {}; searchParams: {} }
+
+// Strategy: 'allowAll' 
+// Generated type for routes without _routeConfig
+{ params: Record<string, string>; searchParams: Record<string, unknown> }
+```
+
+#### 4. **Dual Configuration Generation**
+
+The plugin generates two optimized configuration files:
+
+**Client Config** (`skroutes-client-config.ts`):
+- Safe for browser environments
+- Only imports from client-side files (`+page.ts`)
+- Type-only imports for server schemas (for better inference)
+- Smaller bundle size
+
+**Server Config** (`skroutes-server-config.ts`):  
+- Full access to all routes
+- Imports from both client and server files
+- Complete validation coverage
+- Used for server-side rendering
+
+#### 5. **Development Workflow**
+
+```mermaid
+graph TD
+    A[Save route file] --> B[Plugin detects change]
+    B --> C[Scan for _routeConfig]
+    C --> D[Generate types & validation]
+    D --> E[Update config files]
+    E --> F[TypeScript re-checks]
+    F --> G[Instant feedback]
+```
+
+**Hot Reload**: Changes are detected instantly and configs are regenerated
+**Type Safety**: Immediate TypeScript feedback in your editor
+**Zero Config**: No manual route registration needed
+
+### Plugin Configuration Reference
+
+```typescript
+interface PluginOptions {
+	/** URL to redirect to when validation fails */
+	errorURL: string;
+	
+	/** Path for server-side config file */
+	serverOutputPath?: string; // default: 'src/lib/.generated/skroutes-server-config.ts'
+	
+	/** Path for client-side config file */ 
+	clientOutputPath?: string; // default: 'src/lib/.generated/skroutes-client-config.ts'
+	
+	/** Additional import statements for generated files */
+	imports?: string[]; // default: []
+	
+	/** Include server files (+page.server.ts, +server.ts) in scanning */
+	includeServerFiles?: boolean; // default: true
+	
+	/** Manual route configurations to include */
+	baseConfig?: Record<string, any>; // default: {}
+	
+	/** Directory containing SvelteKit routes relative to project root */
+	routesDirectory?: string; // default: 'src/routes'
+	
+	/** Strategy for handling unconfigured route parameters */
+	unconfiguredParams?: 'allowAll' | 'never' | 'simple' | 'strict' | 'deriveParams'; // default: 'deriveParams'
+	
+	/** Strategy for handling unconfigured search parameters */
+	unconfiguredSearchParams?: 'allowAll' | 'never' | 'simple' | 'strict'; // default: 'never'
+}
+```
+
+### Best Practices
+
+#### 1. **Strategy Selection**
+```typescript
+// Default configuration (recommended for most projects)
+unconfiguredParams: 'deriveParams',  // Auto-derives exact parameters from route paths (NEW DEFAULT!)
+unconfiguredSearchParams: 'never'    // Forces explicit search param configuration (NEW DEFAULT!)
+
+// For new projects - strict validation
+unconfiguredParams: 'strict',        // Prevents accidental usage
+unconfiguredSearchParams: 'never',   // Forces explicit configuration
+
+// For existing projects - gradual adoption  
+unconfiguredParams: 'simple',        // Allows migration
+unconfiguredSearchParams: 'simple',  // Optional parameters
+
+// For maximum flexibility
+unconfiguredParams: 'allowAll',      // Accepts any parameters
+unconfiguredSearchParams: 'allowAll' // Accepts any search params
+```
+
+#### 2. **File Organization**
+```typescript
+// ✅ Keep validation schemas close to usage
+// src/routes/users/[id]/+page.ts
+import { userSchema } from './schemas'; // Local schema file
+
+export const _routeConfig = {
+	paramsValidation: userSchema.parse
+};
+
+// ✅ Reuse schemas across related routes  
+// src/routes/users/[id]/edit/+page.ts
+import { userSchema } from '../schemas'; // Shared parent schema
+```
+
+#### 3. **Import Strategy**
+```typescript
+// ✅ Import from client config for browser code
+import { urlGenerator } from '$lib/.generated/skroutes-client-config';
+
+// ✅ Import from server config for SSR/API routes
+import { urlGenerator } from '$lib/.generated/skroutes-server-config';
+
+// ✅ Use conditional imports for universal code
+const config = import.meta.env.SSR 
+	? await import('$lib/.generated/skroutes-server-config')
+	: await import('$lib/.generated/skroutes-client-config');
+```
+
+#### 4. **Custom Routes Directory**
+```typescript
+// For projects with non-standard directory structure
+skRoutesPlugin({
+  routesDirectory: 'app/routes',     // Custom routes location
+  clientOutputPath: 'src/generated/client-routes.ts',
+  serverOutputPath: 'src/generated/server-routes.ts'
+})
+
+// For monorepos or custom setups
+skRoutesPlugin({
+  routesDirectory: 'apps/web/src/routes',  // Nested routes directory
+  errorURL: '/error'
+})
+```
+
+**Why customize the routes directory?**
+- **Monorepos**: Different apps may have routes in different locations
+- **Migration**: Gradually moving from non-standard directory structures
+- **Custom setup**: Projects with unique architectural requirements
+
 ## API Reference
 
 ### `skRoutes(options)`
@@ -423,6 +825,96 @@ pageInfo(
 ```
 
 ## Migration Guide
+
+### From Manual Configuration to Vite Plugin
+
+**Recommended**: Migrate from manual configuration to the Vite plugin for better DX and maintainability.
+
+#### Before (Manual Configuration)
+
+```typescript
+// src/lib/routes.ts - Manual maintenance required ❌
+import { skRoutes } from 'skroutes';
+import { z } from 'zod';
+
+export const { urlGenerator, pageInfo } = skRoutes({
+	config: {
+		// Must manually add each route ❌
+		'/users/[id]': {
+			paramsValidation: z.object({ id: z.string().uuid() }).parse,
+			searchParamsValidation: z.object({
+				tab: z.enum(['profile', 'settings']).optional()
+			}).parse
+		},
+		'/products/[category]': {
+			paramsValidation: z.object({ 
+				category: z.enum(['electronics', 'clothing', 'books'])
+			}).parse
+		}
+		// Easy to forget routes, get out of sync ❌
+	},
+	errorURL: '/error'
+});
+```
+
+#### After (Vite Plugin)
+
+```typescript
+// vite.config.ts - One-time setup ✅
+export default defineConfig({
+	plugins: [
+		sveltekit(),
+		skRoutesPlugin({
+			errorURL: '/error',
+			unconfiguredParams: 'never', // Strict validation
+			unconfiguredSearchParams: 'simple'
+		})
+	]
+});
+```
+
+```typescript
+// src/routes/users/[id]/+page.ts - Validation alongside route logic ✅
+export const _routeConfig = {
+	paramsValidation: z.object({ id: z.string().uuid() }).parse,
+	searchParamsValidation: z.object({
+		tab: z.enum(['profile', 'settings']).optional()
+	}).parse
+};
+
+export async function load({ params }) {
+	// params.id is already validated as UUID ✅
+	return { user: await getUser(params.id) };
+}
+```
+
+```typescript
+// src/routes/products/[category]/+page.ts - Automatic discovery ✅
+export const _routeConfig = {
+	paramsValidation: z.object({ 
+		category: z.enum(['electronics', 'clothing', 'books'])
+	}).parse
+};
+
+// Route automatically discovered and typed ✅
+```
+
+```typescript
+// Usage stays the same ✅
+import { urlGenerator } from '$lib/.generated/skroutes-client-config';
+
+const url = urlGenerator({
+	address: '/users/[id]',
+	paramsValue: { id: 'user123' }
+});
+```
+
+**Migration Benefits:**
+- ✅ **Zero maintenance**: Routes auto-discovered from file system
+- ✅ **Co-location**: Validation lives with route logic
+- ✅ **Type safety**: Automatic TypeScript integration 
+- ✅ **Hot reload**: Instant feedback during development
+- ✅ **Server/client optimization**: Separate configs for different environments
 
 ### From Previous Versions
 
