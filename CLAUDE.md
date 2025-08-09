@@ -20,7 +20,7 @@ skRoutes is a SvelteKit library that provides typesafe URL generation and state 
 The library centers around a configuration-driven approach where routes are defined with optional parameter and search parameter validation functions. The `skRoutes` function returns:
 
 - `urlGenerator`: Creates typesafe URLs with validated parameters
-- `pageInfo`: Client-side route information and URL updating utilities  
+- `pageInfo`: Client-side route information and URL updating utilities
 - `serverPageInfo`: Server-side equivalent of pageInfo
 - `pageInfoStore`: Reactive store with debounced URL updates
 
@@ -56,6 +56,7 @@ pnpm format
 ## Package Structure
 
 This is a SvelteKit library package that:
+
 - Exports to `dist/` directory
 - Uses `svelte-package` for building
 - Supports Svelte 5.x as peer dependency

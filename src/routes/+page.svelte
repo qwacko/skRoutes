@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { urlGenerator } from '$lib/auto-skroutes.svelte';
 	import { goto } from '$app/navigation';
-	
+
 	// Demo data for showcasing different route types
 	const demoRoutes = [
 		{
@@ -19,13 +19,13 @@
 			description: 'UUID validation with search parameters (tab, page, sort)',
 			route: '/users/[id]',
 			examples: [
-				{ 
-					id: '550e8400-e29b-41d4-a716-446655440000', 
+				{
+					id: '550e8400-e29b-41d4-a716-446655440000',
 					label: 'User Profile',
 					searchParams: { tab: 'profile', page: 1 }
 				},
-				{ 
-					id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8', 
+				{
+					id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
 					label: 'User Settings',
 					searchParams: { tab: 'settings', sort: 'date' }
 				}
@@ -36,13 +36,13 @@
 			description: 'Regex validation for product IDs with filtering options',
 			route: '/products/[id]',
 			examples: [
-				{ 
-					id: 'PROD1234', 
+				{
+					id: 'PROD1234',
 					label: 'Red T-Shirt',
 					searchParams: { color: 'red', size: 'M', inStock: true }
 				},
-				{ 
-					id: 'ITEM5678', 
+				{
+					id: 'ITEM5678',
 					label: 'Blue Jeans',
 					searchParams: { color: 'blue', size: 'L', page: 2 }
 				}
@@ -53,8 +53,8 @@
 			description: 'Server-side validation with required search parameters',
 			route: '/server/[id]',
 			examples: [
-				{ 
-					id: 'server-demo', 
+				{
+					id: 'server-demo',
 					label: 'Server Demo',
 					searchParams: { data: 'test-data' }
 				}
@@ -63,17 +63,17 @@
 	];
 
 	// URL Generation Examples
-	let urlExamples: Array<{title: string, result: any, code: string}> = [];
-	
+	let urlExamples: Array<{ title: string; result: any; code: string }> = [];
+
 	// Generate examples for each route type
-	demoRoutes.forEach(route => {
-		route.examples.forEach(example => {
+	demoRoutes.forEach((route) => {
+		route.examples.forEach((example) => {
 			const result = urlGenerator({
 				address: route.route as any,
 				paramsValue: { id: example.id },
 				searchParamsValue: example.searchParams || {}
 			});
-			
+
 			urlExamples.push({
 				title: `${route.title} - ${example.label}`,
 				result,
@@ -113,14 +113,14 @@
 	<section class="demo-section">
 		<h2>🎯 Interactive Route Examples</h2>
 		<p>Click any link below to see the library in action with different validation schemas:</p>
-		
+
 		<div class="route-grid">
 			{#each demoRoutes as route}
 				<div class="route-card">
 					<h3>{route.title}</h3>
 					<p class="route-description">{route.description}</p>
 					<code class="route-pattern">{route.route}</code>
-					
+
 					<div class="examples">
 						{#each route.examples as example}
 							{@const url = urlGenerator({
@@ -128,14 +128,14 @@
 								paramsValue: { id: example.id },
 								searchParamsValue: example.searchParams || {}
 							})}
-							<a 
-								href={url.url} 
-								class="example-link"
-								class:error={url.error}
-							>
+							<a href={url.url} class="example-link" class:error={url.error}>
 								{example.label}
 								{#if example.searchParams}
-									<small>({Object.entries(example.searchParams).map(([k,v]) => `${k}=${v}`).join(', ')})</small>
+									<small
+										>({Object.entries(example.searchParams)
+											.map(([k, v]) => `${k}=${v}`)
+											.join(', ')})</small
+									>
 								{/if}
 							</a>
 						{/each}
@@ -148,7 +148,7 @@
 	<section class="demo-section">
 		<h2>🔧 URL Generation Results</h2>
 		<p>See how the library generates and validates URLs:</p>
-		
+
 		<div class="results-grid">
 			{#each urlExamples as example}
 				<div class="result-card">
@@ -167,7 +167,8 @@
 							<strong>Params:</strong> <code>{JSON.stringify(example.result.params)}</code>
 						</div>
 						<div class="result-item">
-							<strong>Search Params:</strong> <code>{JSON.stringify(example.result.searchParams)}</code>
+							<strong>Search Params:</strong>
+							<code>{JSON.stringify(example.result.searchParams)}</code>
 						</div>
 					</div>
 				</div>
@@ -178,14 +179,16 @@
 	<section class="demo-section">
 		<h2>❌ Error Handling Example</h2>
 		<p>When validation fails, skRoutes redirects to the configured error URL:</p>
-		
+
 		<div class="error-example">
 			<div class="code-block">
-				<pre><code>urlGenerator(&#123;
+				<pre><code
+						>urlGenerator(&#123;
   address: '/users/[id]',
   paramsValue: &#123; id: 'invalid-uuid' &#125;, // ❌ Not a valid UUID
   searchParamsValue: &#123; tab: 'profile' &#125;
-&#125;)</code></pre>
+&#125;)</code
+					></pre>
 			</div>
 			<div class="result error">
 				<div class="result-item">
@@ -305,7 +308,9 @@
 		border-radius: 8px;
 		padding: 1.5rem;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		transition: transform 0.2s, box-shadow 0.2s;
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
 	}
 
 	.route-card:hover {
