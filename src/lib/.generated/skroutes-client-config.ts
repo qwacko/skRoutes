@@ -26,7 +26,11 @@ export type RouteValidationTypeMap = {
   '/products/[id]': { paramsValidation: typeof serverRouteConfig1001.paramsValidation; searchParamsValidation: typeof serverRouteConfig1001.searchParamsValidation };
   '/server/[id]': { paramsValidation: typeof serverRouteConfig1002.paramsValidation; searchParamsValidation: typeof serverRouteConfig1002.searchParamsValidation };
   '/type-test/[id]': { paramsValidation: typeof serverRouteConfig1003.paramsValidation; searchParamsValidation: typeof serverRouteConfig1003.searchParamsValidation };
-  '/users/[id]': { paramsValidation: typeof serverRouteConfig1004.paramsValidation; searchParamsValidation: typeof serverRouteConfig1004.searchParamsValidation }
+  '/users/[id]': { paramsValidation: typeof serverRouteConfig1004.paramsValidation; searchParamsValidation: typeof serverRouteConfig1004.searchParamsValidation };
+  '/': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> };
+  '/error': { paramsValidation: StandardSchemaV1<any, {}>; searchParamsValidation: StandardSchemaV1<any, {}> };
+  '/optional/[[slug]]': { paramsValidation: StandardSchemaV1<any, { slug?: string }>; searchParamsValidation: StandardSchemaV1<any, {}> };
+  '/store/[id]': { paramsValidation: StandardSchemaV1<any, { id: string }>; searchParamsValidation: StandardSchemaV1<any, {}> }
 };
 
 export const clientRouteConfig = {
@@ -70,6 +74,22 @@ export const clientRouteConfig = {
       },
           searchParamsValidation: routeConfig3.searchParamsValidation,
         },
+  '/': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
   '/api/users/[id]': {
           paramsValidation: {
         '~standard': {
@@ -80,6 +100,44 @@ export const clientRouteConfig = {
             const result: Record<string, string | undefined> = {};
             result.id = String(v.id || '');
             
+            return { value: result };
+          }
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/error': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/optional/[[slug]]': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | undefined> = {};
+            
+            result.slug = v.slug ? String(v.slug) : undefined;
             return { value: result };
           }
         }
@@ -115,6 +173,28 @@ export const clientRouteConfig = {
       },
         },
   '/server/[id]': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | undefined> = {};
+            result.id = String(v.id || '');
+            
+            return { value: result };
+          }
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/store/[id]': {
           paramsValidation: {
         '~standard': {
           version: 1,
@@ -183,7 +263,7 @@ export const clientRouteConfig = {
 } satisfies RouteConfig as unknown as RouteValidationTypeMap;
 
 // Export route keys for type checking
-export type RouteKeys = '/[id]' | '/test-no-validation' | '/test-partial/[id]' | '/test-search-only' | '/api/users/[id]' | '/products/[id]' | '/server/[id]' | '/type-test/[id]' | '/users/[id]';
+export type RouteKeys = '/[id]' | '/test-no-validation' | '/test-partial/[id]' | '/test-search-only' | '/' | '/api/users/[id]' | '/error' | '/optional/[[slug]]' | '/products/[id]' | '/server/[id]' | '/store/[id]' | '/type-test/[id]' | '/users/[id]';
 
 // Export type mapping for schema inference
 export type RouteTypeMap = {
@@ -195,7 +275,11 @@ export type RouteTypeMap = {
   '/products/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1001.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1001.searchParamsValidation> };
   '/server/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1002.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1002.searchParamsValidation> };
   '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1003.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1003.searchParamsValidation> };
-  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.searchParamsValidation> }
+  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof serverRouteConfig1004.searchParamsValidation> };
+  '/': { params: {}; searchParams: {} };
+  '/error': { params: {}; searchParams: {} };
+  '/optional/[[slug]]': { params: { slug?: string }; searchParams: {} };
+  '/store/[id]': { params: { id: string }; searchParams: {} }
 };
 
 // Convenience type aliases for accessing route param/search param types

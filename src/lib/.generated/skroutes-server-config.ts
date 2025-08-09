@@ -73,11 +73,87 @@ export const serverRouteConfig = {
   '/users/[id]': {
           paramsValidation: routeConfig8.paramsValidation,
           searchParamsValidation: routeConfig8.searchParamsValidation,
+        },
+  '/': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/error': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/optional/[[slug]]': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | undefined> = {};
+            
+            result.slug = v.slug ? String(v.slug) : undefined;
+            return { value: result };
+          }
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
+        },
+  '/store/[id]': {
+          paramsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => {
+            if (!v || typeof v !== 'object') return { value: {} };
+            const result: Record<string, string | undefined> = {};
+            result.id = String(v.id || '');
+            
+            return { value: result };
+          }
+        }
+      },
+          searchParamsValidation: {
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: {} })
+        }
+      },
         }
 } as const;
 
 // Export complete route keys for type checking (server has full visibility)
-export type ServerRouteKeys = '/[id]' | '/api/users/[id]' | '/products/[id]' | '/server/[id]' | '/test-no-validation' | '/test-partial/[id]' | '/test-search-only' | '/type-test/[id]' | '/users/[id]';
+export type ServerRouteKeys = '/[id]' | '/api/users/[id]' | '/products/[id]' | '/server/[id]' | '/test-no-validation' | '/test-partial/[id]' | '/test-search-only' | '/type-test/[id]' | '/users/[id]' | '/' | '/error' | '/optional/[[slug]]' | '/store/[id]';
 
 // Export complete type mapping for schema inference (server has full visibility)
 export type ServerRouteTypeMap = {
@@ -89,7 +165,11 @@ export type ServerRouteTypeMap = {
   '/test-partial/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig5.paramsValidation>; searchParams: {} };
   '/test-search-only': { params: {}; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig6.searchParamsValidation> };
   '/type-test/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig7.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig7.searchParamsValidation> };
-  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig8.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig8.searchParamsValidation> }
+  '/users/[id]': { params: StandardSchemaV1.InferOutput<typeof routeConfig8.paramsValidation>; searchParams: StandardSchemaV1.InferOutput<typeof routeConfig8.searchParamsValidation> };
+  '/': { params: {}; searchParams: {} };
+  '/error': { params: {}; searchParams: {} };
+  '/optional/[[slug]]': { params: { slug?: string }; searchParams: {} };
+  '/store/[id]': { params: { id: string }; searchParams: {} }
 };
 
 // Convenience type aliases for accessing route param/search param types

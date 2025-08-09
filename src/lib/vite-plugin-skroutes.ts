@@ -282,7 +282,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 
 				if (stat.isDirectory()) {
 					walkDirectory(fullPath, join(relativePath, entry));
-				} else if ([...clientFiles, ...serverFiles].some((pattern) => entry === pattern)) {
+				} else if (
+					[...clientFiles, ...serverFiles, '+page.svelte'].some((pattern) => entry === pattern)
+				) {
 					const routePath = extractRoutePathFromDirectory(relativePath);
 					if (!routes.includes(routePath)) {
 						routes.push(routePath);
