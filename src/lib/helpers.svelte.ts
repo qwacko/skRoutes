@@ -17,22 +17,22 @@ type StandardObject =
 
 /**
  * Creates a bi-directional sync between a getter and setter with optional throttling.
- * 
+ *
  * This utility enables reactive synchronization where:
  * - Changes to the getter's value are throttled and synced to internal state
  * - Changes to internal state are throttled and passed to the setter
  * - Both directions can have independent throttle times
- * 
+ *
  * @template T - The type of object being synchronized
  * @param options - Configuration for the sync behavior
  * @param options.getter - Function that returns the source value to sync from
  * @param options.setter - Function called when internal state changes need to be persisted
  * @param options.throttleTime - Milliseconds to throttle setter calls (default: 0)
- * @param options.throttleTimeGetter - Milliseconds to throttle getter changes (default: 0) 
+ * @param options.throttleTimeGetter - Milliseconds to throttle getter changes (default: 0)
  * @param options.debug - Enable debug logging (default: false)
- * 
+ *
  * @returns Object with state getter/setter and immediateUpdate function
- * 
+ *
  * @example
  * ```typescript
  * const sync = throttledSync({
@@ -40,13 +40,13 @@ type StandardObject =
  *   setter: (newValue) => { externalState = newValue; },
  *   throttleTime: 500 // Throttle external updates to 500ms
  * });
- * 
+ *
  * // Access current state
  * console.log(sync.state.someProperty);
- * 
+ *
  * // Update state (will be throttled)
  * sync.state.someProperty = 'new value';
- * 
+ *
  * // Update immediately without throttling
  * sync.immediateUpdate({ someProperty: 'immediate' });
  * ```
@@ -66,7 +66,7 @@ export const throttledSync = <T extends StandardObject>({
 }) => {
 	// Internal reactive state that can be modified directly
 	let internalState: T = $state($state.snapshot(getter()) as T);
-	
+
 	// Track previous state to detect actual changes (not just reference changes)
 	let previousState: T = $state($state.snapshot(getter()) as T);
 
@@ -92,11 +92,12 @@ export const throttledSync = <T extends StandardObject>({
 	watch(
 		() => $state.snapshot(throttledValue.current),
 		(current, prev) => {
-			debug && console.log('[throttledSync] Throttled getter value changed:', current, 'from:', prev);
-			
+			debug &&
+				console.log('[throttledSync] Throttled getter value changed:', current, 'from:', prev);
+
 			const valueSnapshot = $state.snapshot(getter()) as T;
 			const previousValueSnapshot = $state.snapshot(previousState) as T;
-			
+
 			// Only update if there's an actual change in content
 			if (
 				valueSnapshot &&
@@ -115,12 +116,17 @@ export const throttledSync = <T extends StandardObject>({
 	watch(
 		() => throttledInternalValue.current,
 		(current, prev) => {
-			debug && console.log('[throttledSync] Throttled internal value changed:', 
-				$state.snapshot(current), 'from:', $state.snapshot(prev));
-			
+			debug &&
+				console.log(
+					'[throttledSync] Throttled internal value changed:',
+					$state.snapshot(current),
+					'from:',
+					$state.snapshot(prev)
+				);
+
 			const valueSnapshot = $state.snapshot(internalState) as T;
 			const previousValueSnapshot = $state.snapshot(previousState);
-			
+
 			// Only call setter if there's an actual change in content
 			if (
 				valueSnapshot &&
@@ -145,11 +151,11 @@ export const throttledSync = <T extends StandardObject>({
 		set state(newValue: T) {
 			internalState = newValue;
 		},
-		
+
 		/**
 		 * Immediately update both internal state and call setter without throttling.
 		 * Useful for external synchronization that should bypass throttling.
-		 * 
+		 *
 		 * @param newValue - The new value to set immediately
 		 */
 		immediateUpdate: (newValue: T) => {
