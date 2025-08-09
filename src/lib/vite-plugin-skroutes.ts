@@ -77,8 +77,18 @@ interface PluginOptions {
 
 	/** How to type unconfigured search parameters. @default 'never' */
 	unconfiguredSearchParams?: UnconfiguredSearchParamStrategy;
+
 	/** Source package name for skRoutes imports in generated files. @default 'skroutes' */
 	skRoutesSource?: string;
+
+	/** Server-side files to scan for route configurations. @default ["+page.server.ts", "+server.ts", "+page.server.js", "+server.js"] */
+	serverFiles?: string[];
+
+	/** Client-side files to scan for route configurations. @default ["+page.ts", "+page.js"] */
+	clientFiles?: string[];
+
+	/** Target variable name to search for in route files. @default "_routeConfig" */
+	targetVariable?: string;
 }
 
 /**
@@ -107,8 +117,8 @@ interface SchemaDefinition {
  *
  * ## How It Works
  *
- * 1. **Route Discovery**: Scans your `src/routes` directory for SvelteKit route files
- * 2. **Configuration Detection**: Looks for `_routeConfig` exports in `+page.ts`, `+page.server.ts`, and `+server.ts` files
+ * 1. **Route Discovery**: Scans your `src/routes` directory for SvelteKit route files (configurable file patterns)
+ * 2. **Configuration Detection**: Looks for configurable exports (default: `_routeConfig`) in configurable file types
  * 3. **Smart Defaults**: Automatically generates validation and types for routes without explicit configuration
  * 4. **Type Generation**: Creates TypeScript type mappings for compile-time type safety
  * 5. **Hot Reload**: Regenerates configs when route files change during development
@@ -120,7 +130,7 @@ interface SchemaDefinition {
  *
  * ## Route Configuration
  *
- * Add validation to your routes by exporting `_routeConfig`:
+ * Add validation to your routes by exporting the target variable (default: `_routeConfig`):
  *
  * ```typescript
  * // src/routes/users/[id]/+page.ts
@@ -156,7 +166,10 @@ interface SchemaDefinition {
  *   routesDirectory: 'src/routes',
  *   unconfiguredParams: 'strict',
  *   unconfiguredSearchParams: 'simple',
- *   includeServerFiles: false
+ *   includeServerFiles: false,
+ *   serverFiles: ["+page.server.ts", "+server.ts", "+page.server.js", "+server.js"],
+ *   clientFiles: ["+page.ts", "+page.js"],
+ *   targetVariable: "_routeConfig"
  * })
  *
  * // With manual route configs
@@ -178,7 +191,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		routesDirectory = 'src/routes',
 		unconfiguredParams = 'deriveParams',
 		unconfiguredSearchParams = 'never',
-		skRoutesSource = 'skroutes'
+		skRoutesSource = 'skroutes',
+		serverFiles = ['+page.server.ts', '+server.ts', '+page.server.js', '+server.js'],
+		clientFiles = ['+page.ts', '+page.js'],
+		targetVariable = '_routeConfig'
 	} = options;
 	let root: string;
 
@@ -194,11 +210,13 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		},
 		async handleHotUpdate({ file, server }) {
 			// Regenerate config when page or server files change
-			const isRelevantFile =
-				(file.includes('+page.') && (file.endsWith('.ts') || file.endsWith('.js'))) ||
-				(includeServerFiles &&
-					file.includes('+server.') &&
-					(file.endsWith('.ts') || file.endsWith('.js')));
+			const allFiles = [...clientFiles, ...(includeServerFiles ? serverFiles : [])];
+			const isRelevantFile = allFiles.some((pattern) => {
+				// Convert pattern to match file paths
+				const fileName = file.split('/').pop() || '';
+				return fileName === pattern;
+			});
+
 			if (isRelevantFile) {
 				generateServerConfigFile();
 				generateClientConfigFile();
@@ -235,14 +253,14 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 	function generateRelativeImportPath(filePath: string, outputPath: string): string {
 		// Convert absolute file path to relative import path from the generated config
 		const relativePath = filePath.replace(root, '').replace(/\\/g, '/');
-		
+
 		// Calculate the relative path from the output directory to the source file
 		const outputDir = outputPath.split('/').slice(0, -1).join('/');
 		const outputDepth = outputDir.split('/').length;
-		
+
 		// Generate the correct number of '../' based on output directory depth
 		const upLevels = '../'.repeat(outputDepth);
-		
+
 		// Remove file extension and create import path
 		const importPath = upLevels + relativePath.replace(/^\//, '').replace(/\.(ts|js)$/, '');
 
@@ -264,10 +282,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 
 				if (stat.isDirectory()) {
 					walkDirectory(fullPath, join(relativePath, entry));
-				} else if (
-					entry.match(/^\+(page|server)\.(server\.)?[tj]s$/) ||
-					entry.match(/^\+page\.svelte$/)
-				) {
+				} else if ([...clientFiles, ...serverFiles].some((pattern) => entry === pattern)) {
 					const routePath = extractRoutePathFromDirectory(relativePath);
 					if (!routes.includes(routePath)) {
 						routes.push(routePath);
@@ -280,7 +295,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		return routes;
 	}
 
-	function getUnconfiguredParamsValidation(strategy: UnconfiguredParamStrategy, routePath?: string): string {
+	function getUnconfiguredParamsValidation(
+		strategy: UnconfiguredParamStrategy,
+		routePath?: string
+	): string {
 		switch (strategy) {
 			case 'allowAll':
 				return `{
@@ -361,15 +379,19 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		const optionalParams = optionalParamMatches.map((match) => match.replace(/[\[\]]/g, ''));
 
 		const validationChecks = [
-			...requiredParams.map((param) => `
+			...requiredParams.map(
+				(param) => `
             if (!v.${param}) {
               throw new Error('Missing required parameter: ${param}');
             }
-            result.${param} = String(v.${param});`),
-			...optionalParams.map((param) => `
+            result.${param} = String(v.${param});`
+			),
+			...optionalParams.map(
+				(param) => `
             if (v.${param} !== undefined) {
               result.${param} = String(v.${param});
-            }`)
+            }`
+			)
 		].join('');
 
 		return `{
@@ -490,7 +512,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 	 * Returns the TypeScript type definition for unconfigured route parameters
 	 * based on the selected strategy.
 	 */
-	function getUnconfiguredParamsType(strategy: UnconfiguredParamStrategy, routePath?: string): string {
+	function getUnconfiguredParamsType(
+		strategy: UnconfiguredParamStrategy,
+		routePath?: string
+	): string {
 		switch (strategy) {
 			case 'allowAll':
 				return 'Record<string, string>';
@@ -559,7 +584,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 	 * Returns the validation type string for unconfigured route parameters
 	 * based on the selected strategy. Used in RouteValidationTypeMap.
 	 */
-	function getUnconfiguredParamsValidationType(strategy: UnconfiguredParamStrategy, routePath?: string): string {
+	function getUnconfiguredParamsValidationType(
+		strategy: UnconfiguredParamStrategy,
+		routePath?: string
+	): string {
 		switch (strategy) {
 			case 'allowAll':
 				return 'StandardSchemaV1<any, Record<string, string>>';
@@ -585,7 +613,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 	 * Returns the validation type string for unconfigured search parameters
 	 * based on the selected strategy. Used in RouteValidationTypeMap.
 	 */
-	function getUnconfiguredSearchParamsValidationType(strategy: UnconfiguredSearchParamStrategy): string {
+	function getUnconfiguredSearchParamsValidationType(
+		strategy: UnconfiguredSearchParamStrategy
+	): string {
 		switch (strategy) {
 			case 'allowAll':
 				return 'StandardSchemaV1<any, Record<string, unknown>>';
@@ -1179,24 +1209,24 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 				if (stat.isDirectory()) {
 					walkDirectory(fullPath, join(relativePath, entry));
-				} else if (entry.match(/^\+page\.[tj]s$/)) {
+				} else if (clientFiles.some((pattern) => entry === pattern)) {
 					// Only scan client-side page files to avoid server import issues
 					const content = readFileSync(fullPath, 'utf-8');
 					const routePath = extractRoutePathFromDirectory(relativePath);
 
-					// Look for unified route config
-					const routeConfigPattern = /export\s+const\s+_routeConfig\s*=/;
+					// Look for unified route config using configurable target variable
+					const routeConfigPattern = new RegExp(`export\\s+const\\s+${targetVariable}\\s*=`);
 					const routeConfigMatch = content.match(routeConfigPattern);
 
 					if (routeConfigMatch) {
-						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
+						// Check if paramsValidation and searchParamsValidation exist as properties in the target variable
 						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
 						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
 
 						schemas.push({
 							routePath,
 							filePath: fullPath,
-							routeConfig: '_routeConfig',
+							routeConfig: targetVariable,
 							hasParamsValidation,
 							hasSearchParamsValidation
 						});
@@ -1224,22 +1254,22 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 
 				if (stat.isDirectory()) {
 					walkDirectory(fullPath, join(relativePath, entry));
-				} else if (entry.match(/^\+(page|server)\.(server\.)?[tj]s$/)) {
+				} else if ([...clientFiles, ...serverFiles].some((pattern) => entry === pattern)) {
 					// Scan both client and server files for server-side config
 					const content = readFileSync(fullPath, 'utf-8');
 					const routePath = extractRoutePathFromDirectory(relativePath);
 
-					// Look for unified route config
-					const routeConfigPattern = /export\s+const\s+_routeConfig\s*=/;
+					// Look for unified route config using configurable target variable
+					const routeConfigPattern = new RegExp(`export\\s+const\\s+${targetVariable}\\s*=`);
 					const routeConfigMatch = content.match(routeConfigPattern);
 
 					if (routeConfigMatch) {
-						// Check if paramsValidation and searchParamsValidation exist as properties in _routeConfig
+						// Check if paramsValidation and searchParamsValidation exist as properties in the target variable
 						const hasParamsValidation = /paramsValidation\s*:/gm.test(content);
 						const hasSearchParamsValidation = /searchParamsValidation\s*:/gm.test(content);
 
 						// Determine file type and if it's server-side
-						const isServerFile = entry.includes('.server.') || entry.includes('+server.');
+						const isServerFile = serverFiles.some((pattern) => entry === pattern);
 						const fileType: 'client' | 'server' | 'api' = entry.includes('+server.')
 							? 'api'
 							: isServerFile
@@ -1249,7 +1279,7 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 						schemas.push({
 							routePath,
 							filePath: fullPath,
-							routeConfig: '_routeConfig',
+							routeConfig: targetVariable,
 							hasParamsValidation,
 							hasSearchParamsValidation,
 							isServerFile,

@@ -155,10 +155,7 @@ export function createUpdateParams<Config extends RouteConfig, Address extends k
 		searchParams?: Partial<Record<string, unknown>>;
 	}) => {
 		const mergedParams = customMerge(currentParams, newParams);
-		const mergedSearch = customMerge(
-			getUrlParams(currentSearch),
-			newSearchParams
-		);
+		const mergedSearch = customMerge(getUrlParams(currentSearch), newSearchParams);
 
 		return urlGenerator({
 			address: routeId,
