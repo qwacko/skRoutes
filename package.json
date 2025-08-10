@@ -1,6 +1,6 @@
 {
 	"name": "skroutes",
-	"version": "1.3.3",
+	"version": "1.3.4",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && pnpm run package",
