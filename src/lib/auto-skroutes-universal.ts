@@ -1,7 +1,6 @@
 import { skRoutesUniversal } from './skRoutes-universal';
-import { clientRouteConfig } from './.generated/skroutes-client-config';
 
-export const { universalPageInfo } = skRoutesUniversal({
+export const { universalPageInfo, loadConfig: universalLoadConfig } = skRoutesUniversal({
 	errorURL: '/',
-	config: clientRouteConfig
+	config: async () => (await import('./.generated/skroutes-client-config.js')).clientRouteConfig
 });
