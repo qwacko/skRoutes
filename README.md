@@ -67,7 +67,7 @@ import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
 export const { urlGenerator, pageInfo } = skRoutes({
-	config: {
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: z.object({
 				id: z.string().uuid()
@@ -82,7 +82,7 @@ export const { urlGenerator, pageInfo } = skRoutes({
 				slug: z.string().min(1)
 			})
 		}
-	},
+	}),
 	errorURL: '/error'
 });
 ```
@@ -290,13 +290,28 @@ export async function load({ params, url }) {
 
 #### Use Auto-Generated Routes
 
-The plugin generates two configuration files:
+The plugin generates two configuration files that you can import using async config loading:
 
 ```typescript
-// Import the appropriate config for your environment
-import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-client-config'; // Client-side
-// or
-import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-server-config'; // Server-side (has access to all routes)
+// src/lib/routes.ts - Using auto-generated client config
+import { skRoutes } from 'skroutes';
+
+export const { urlGenerator, pageInfo } = skRoutes({
+	config: async () => {
+		const { clientRouteConfig } = await import('$lib/.generated/skroutes-client-config');
+		return clientRouteConfig;
+	},
+	errorURL: '/error'
+});
+
+// For server-side usage
+export const { urlGeneratorServer, serverPageInfo } = skRoutesServer({
+	config: async () => {
+		const { serverRouteConfig } = await import('$lib/.generated/skroutes-server-config');
+		return serverRouteConfig;
+	},
+	errorURL: '/error'
+});
 
 // All your routes are automatically typed and available!
 const userUrl = urlGenerator({
@@ -455,7 +470,7 @@ route.current.searchParams.filter = 'active';
 
 ### Manual Configuration
 
-You can also manually configure routes without the plugin:
+You can also manually configure routes without the plugin using async config loading:
 
 ```typescript
 // src/lib/routes.ts
@@ -463,7 +478,7 @@ import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
 export const { urlGenerator, pageInfo } = skRoutes({
-	config: {
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: z.object({ id: z.string().uuid() }),
 			searchParamsValidation: z.object({
@@ -482,9 +497,25 @@ export const { urlGenerator, pageInfo } = skRoutes({
 				maxPrice: z.coerce.number().min(0).optional()
 			})
 		}
-	},
+	}),
 	errorURL: '/error',
 	updateAction: 'goto' // Default behavior for all pageInfo instances
+});
+```
+
+**Breaking Circular Dependencies:**
+
+The async config pattern is especially useful for breaking circular dependencies:
+
+```typescript
+// This prevents circular imports between your route files and skRoutes
+export const { urlGenerator, pageInfo } = skRoutes({
+	config: async () => {
+		// Dynamic import prevents circular dependency
+		const routeConfigs = await import('./my-route-configs');
+		return routeConfigs.default;
+	},
+	errorURL: '/error'
 });
 ```
 
@@ -522,11 +553,11 @@ const arkSchema = type({ id: 'string' });
 
 // Use any of these in your route config
 export const routes = skRoutes({
-	config: {
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: zodSchema // or valibotSchema, or arkSchema
 		}
-	},
+	}),
 	errorURL: '/error'
 });
 ```
@@ -839,7 +870,7 @@ Creates a route configuration with type-safe utilities.
 
 **Options:**
 
-- `config`: Object mapping route patterns to validation schemas
+- `config`: Async function returning object mapping route patterns to validation schemas
 - `errorURL`: URL to redirect to on validation errors
 
 **Returns:**
