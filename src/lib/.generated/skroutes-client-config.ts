@@ -108,7 +108,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: {} })
+          validate: (v: any) => ({ value: v || {} })
         }
       },
         },
@@ -168,7 +168,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: {} })
+          validate: (v: any) => ({ value: v || {} })
         }
       },
         },
@@ -190,7 +190,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: {} })
+          validate: (v: any) => ({ value: v || {} })
         }
       },
         },
@@ -234,7 +234,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: {} })
+          validate: (v: any) => ({ value: v || {} })
         }
       },
         },
@@ -256,7 +256,7 @@ export const clientRouteConfig = {
         '~standard': {
           version: 1,
           vendor: 'skroutes',
-          validate: (v: any) => ({ value: {} })
+          validate: (v: any) => ({ value: v || {} })
         }
       },
         }
