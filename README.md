@@ -66,8 +66,8 @@ pnpm add skroutes
 import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
-export const { urlGenerator, pageInfo } = skRoutes({
-	config: {
+export const { urlGenerator, pageInfo, loadConfig } = skRoutes({
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: z.object({
 				id: z.string().uuid()
@@ -82,12 +82,39 @@ export const { urlGenerator, pageInfo } = skRoutes({
 				slug: z.string().min(1)
 			})
 		}
-	},
+	}),
 	errorURL: '/error'
 });
 ```
 
-### 2. Generate Type-Safe URLs
+### 2. Initialize Configuration (Required)
+
+Since the configuration is now asynchronous, you must call `loadConfig()` before using any other exported functions. Use the SvelteKit hooks files for proper initialization:
+
+```typescript
+// src/hooks.server.ts
+import { loadConfig } from '$lib/routes';
+
+// Initialize the configuration before handling any requests
+await loadConfig();
+
+export async function handle({ event, resolve }) {
+	// Your handle logic here
+	return resolve(event);
+}
+```
+
+```typescript
+// src/hooks.client.ts
+import { loadConfig } from '$lib/routes';
+
+// Initialize the configuration on the client
+await loadConfig();
+```
+
+**⚠️ Important**: All `urlGenerator`, `pageInfo`, and other skRoutes functions will not work correctly until `loadConfig()` has been awaited. The hooks files are the recommended location for this initialization as they run before your application starts handling requests or rendering pages.
+
+### 3. Generate Type-Safe URLs
 
 ```typescript
 import { urlGenerator } from '$lib/routes';
@@ -114,7 +141,7 @@ const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searc
 // urlGenerator({ address: '/users/[id]', searchParamsValue: { tab: 'invalid' } }); // Error: invalid tab value
 ```
 
-### 3. Use in SvelteKit Pages
+### 4. Use in SvelteKit Pages
 
 ```svelte
 <!-- src/routes/users/[id]/+page.svelte -->
@@ -177,7 +204,7 @@ const userTab = userUrl.searchParams.tab; // ✅ Direct access, no userUrl.searc
 </div>
 ```
 
-### 4. Vite Plugin for Auto-Generated Routes (Recommended)
+### 5. Vite Plugin for Auto-Generated Routes (Recommended)
 
 **The Vite plugin is the recommended approach** for using skRoutes. It automatically scans your SvelteKit route files and generates fully-typed configurations with zero manual setup.
 
@@ -290,13 +317,32 @@ export async function load({ params, url }) {
 
 #### Use Auto-Generated Routes
 
-The plugin generates two configuration files:
+The plugin generates two configuration files that you can import using async config loading:
 
 ```typescript
-// Import the appropriate config for your environment
-import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-client-config'; // Client-side
-// or
-import { urlGenerator, pageInfo } from '$lib/.generated/skroutes-server-config'; // Server-side (has access to all routes)
+// src/lib/routes.ts - Using auto-generated client config
+import { skRoutes } from 'skroutes';
+
+export const { urlGenerator, pageInfo, loadConfig } = skRoutes({
+	config: async () => {
+		const { clientRouteConfig } = await import('$lib/.generated/skroutes-client-config');
+		return clientRouteConfig;
+	},
+	errorURL: '/error'
+});
+
+// For server-side usage
+export const { urlGeneratorServer, serverPageInfo, loadConfigServer } = skRoutesServer({
+	config: async () => {
+		const { serverRouteConfig } = await import('$lib/.generated/skroutes-server-config');
+		return serverRouteConfig;
+	},
+	errorURL: '/error'
+});
+
+// Initialize configurations in hooks files:
+// src/hooks.server.ts: await loadConfig(); await loadConfigServer();
+// src/hooks.client.ts: await loadConfig();
 
 // All your routes are automatically typed and available!
 const userUrl = urlGenerator({
@@ -455,15 +501,15 @@ route.current.searchParams.filter = 'active';
 
 ### Manual Configuration
 
-You can also manually configure routes without the plugin:
+You can also manually configure routes without the plugin using async config loading:
 
 ```typescript
 // src/lib/routes.ts
 import { skRoutes } from 'skroutes';
 import { z } from 'zod';
 
-export const { urlGenerator, pageInfo } = skRoutes({
-	config: {
+export const { urlGenerator, pageInfo, loadConfig } = skRoutes({
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: z.object({ id: z.string().uuid() }),
 			searchParamsValidation: z.object({
@@ -482,10 +528,34 @@ export const { urlGenerator, pageInfo } = skRoutes({
 				maxPrice: z.coerce.number().min(0).optional()
 			})
 		}
-	},
+	}),
 	errorURL: '/error',
 	updateAction: 'goto' // Default behavior for all pageInfo instances
 });
+
+// Remember to initialize in hooks files:
+// src/hooks.server.ts: await loadConfig();
+// src/hooks.client.ts: await loadConfig();
+```
+
+**Breaking Circular Dependencies:**
+
+The async config pattern is especially useful for breaking circular dependencies:
+
+```typescript
+// This prevents circular imports between your route files and skRoutes
+export const { urlGenerator, pageInfo, loadConfig } = skRoutes({
+	config: async () => {
+		// Dynamic import prevents circular dependency
+		const routeConfigs = await import('./my-route-configs');
+		return routeConfigs.default;
+	},
+	errorURL: '/error'
+});
+
+// Don't forget to initialize in hooks files:
+// src/hooks.server.ts: await loadConfig();
+// src/hooks.client.ts: await loadConfig();
 ```
 
 ### Error Handling
@@ -522,11 +592,11 @@ const arkSchema = type({ id: 'string' });
 
 // Use any of these in your route config
 export const routes = skRoutes({
-	config: {
+	config: async () => ({
 		'/users/[id]': {
 			paramsValidation: zodSchema // or valibotSchema, or arkSchema
 		}
-	},
+	}),
 	errorURL: '/error'
 });
 ```
@@ -839,13 +909,42 @@ Creates a route configuration with type-safe utilities.
 
 **Options:**
 
-- `config`: Object mapping route patterns to validation schemas
+- `config`: Async function returning object mapping route patterns to validation schemas
 - `errorURL`: URL to redirect to on validation errors
 
 **Returns:**
 
 - `urlGenerator`: Function to generate validated URLs
 - `pageInfo`: Client-side route information utility with optional debounced updates
+- `loadConfig`: Async function that must be called to initialize the configuration before using other functions
+
+### `loadConfig()`
+
+Initializes the asynchronous route configuration. Must be called before using `urlGenerator`, `pageInfo`, or other skRoutes functions.
+
+```typescript
+await loadConfig();
+```
+
+**Usage Examples:**
+
+```typescript
+// src/hooks.server.ts (recommended)
+import { loadConfig } from '$lib/routes';
+await loadConfig();
+
+// src/hooks.client.ts (recommended)
+import { loadConfig } from '$lib/routes';
+await loadConfig();
+
+// With error handling
+try {
+	await loadConfig();
+	console.log('Routes initialized successfully');
+} catch (error) {
+	console.error('Failed to initialize routes:', error);
+}
+```
 
 ### Route Configuration
 

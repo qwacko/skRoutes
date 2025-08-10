@@ -1,3 +1,4 @@
+import { load } from '../routes/test-search-only/+page.js';
 import {
 	getUrlParams,
 	createUrlGenerator,
@@ -5,7 +6,8 @@ import {
 	type RouteConfig,
 	type SingleRouteConfig,
 	type ParamsType,
-	type SearchParamsType
+	type SearchParamsType,
+	configHandler
 } from './helpers.js';
 
 /**
@@ -67,8 +69,11 @@ export function skRoutesServer<Config extends ServerRouteConfig>({
 	config
 }: {
 	errorURL: string;
-	config: Config;
+	config: () => Promise<Config>;
 }) {
+	const { loadConfig, getConfig } = configHandler(config);
+	loadConfig();
+
 	/**
 	 * Server-side URL generator for configured routes with parameter validation.
 	 *
@@ -78,7 +83,7 @@ export function skRoutesServer<Config extends ServerRouteConfig>({
 	 * @param input.searchParamsValue - Search parameters object
 	 * @returns Object containing the generated URL and validated parameters
 	 */
-	const urlGeneratorServer = createUrlGenerator(config, errorURL);
+	const urlGeneratorServer = createUrlGenerator(getConfig, errorURL);
 
 	/**
 	 * Creates server-side route information and parameter update utilities for a specific route.
@@ -155,5 +160,5 @@ export function skRoutesServer<Config extends ServerRouteConfig>({
 		};
 	};
 
-	return { urlGeneratorServer, serverPageInfo };
+	return { urlGeneratorServer, serverPageInfo, loadConfig, getConfig };
 }

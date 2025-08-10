@@ -12,7 +12,8 @@ import {
 	type ParamsType,
 	type SearchParamsType,
 	type ValidatedParamsType,
-	type ValidatedSearchParamsType
+	type ValidatedSearchParamsType,
+	configHandler
 } from './helpers.js';
 import { throttledSync } from './helpers.svelte.js';
 import { isEqual } from 'lodash-es';
@@ -67,9 +68,12 @@ export function skRoutes<Config extends RouteConfig>({
 	updateAction = 'goto'
 }: {
 	errorURL: string;
-	config: Config;
+	config: () => Promise<Config>;
 	updateAction?: RouteUpdateAction;
 }) {
+	const { loadConfig, getConfig } = configHandler(config);
+	loadConfig();
+
 	/**
 	 * Generates typesafe URLs for configured routes with parameter validation.
 	 *
@@ -79,7 +83,7 @@ export function skRoutes<Config extends RouteConfig>({
 	 * @param input.searchParamsValue - Search parameters object
 	 * @returns Object containing the generated URL and validated parameters
 	 */
-	const urlGenerator = createUrlGenerator(config, errorURL);
+	const urlGenerator = createUrlGenerator(getConfig, errorURL);
 
 	/**
 	 * Creates reactive route information and parameter update utilities for a specific route.
@@ -324,5 +328,5 @@ export function skRoutes<Config extends RouteConfig>({
 		};
 	};
 
-	return { urlGenerator, pageInfo };
+	return { urlGenerator, pageInfo, loadConfig, getConfig };
 }
