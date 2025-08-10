@@ -462,7 +462,7 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		}
 	}
 
-	function generateSmartParamValidation(routePath: string): {
+	function generateSmartParamValidation(routePath: string, hasServerValidation?: { params?: boolean; searchParams?: boolean }): {
 		paramsValidation: string;
 		searchParamsValidation: string;
 	} {
@@ -502,12 +502,35 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
         }
       }`;
 		} else {
-			// Use configured strategy for routes without defined params
-			paramsValidation = getUnconfiguredParamsValidation(unconfiguredParams, routePath);
+			// If server has params validation, use passthrough instead of configured strategy
+			if (hasServerValidation?.params) {
+				paramsValidation = `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+			} else {
+				// Use configured strategy for routes without defined params
+				paramsValidation = getUnconfiguredParamsValidation(unconfiguredParams, routePath);
+			}
 		}
 
-		// Search params always use the configured strategy for unconfigured routes
-		const searchParamsValidation = getUnconfiguredSearchParamsValidation(unconfiguredSearchParams);
+		// If server has search params validation, use passthrough instead of configured strategy
+		let searchParamsValidation: string;
+		if (hasServerValidation?.searchParams) {
+			searchParamsValidation = `{
+        '~standard': {
+          version: 1,
+          vendor: 'skroutes',
+          validate: (v: any) => ({ value: v || {} })
+        }
+      }`;
+		} else {
+			// Search params use the configured strategy for unconfigured routes
+			searchParamsValidation = getUnconfiguredSearchParamsValidation(unconfiguredSearchParams);
+		}
 
 		return { paramsValidation, searchParamsValidation };
 	}
@@ -916,7 +939,13 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 				}
 
 				// Use configured fallback strategies when validators are missing from _routeConfig
-				const smartParams = generateSmartParamValidation(schema.routePath);
+				// Check if server has validation for this route
+				const serverSchema = routeToServerSchema.get(schema.routePath);
+				const hasServerValidation = {
+					params: serverSchema?.hasParamsValidation || false,
+					searchParams: serverSchema?.hasSearchParamsValidation || false
+				};
+				const smartParams = generateSmartParamValidation(schema.routePath, hasServerValidation);
 				const paramsValidation = schema.hasParamsValidation
 					? `${schemaAlias}.paramsValidation`
 					: smartParams.paramsValidation;
@@ -940,7 +969,13 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 		]);
 		allRoutes.forEach((routePath) => {
 			if (!routesWithClientConfig.has(routePath)) {
-				const smartParams = generateSmartParamValidation(routePath);
+				// Check if server has validation for this route
+				const serverSchema = routeToServerSchema.get(routePath);
+				const hasServerValidation = {
+					params: serverSchema?.hasParamsValidation || false,
+					searchParams: serverSchema?.hasSearchParamsValidation || false
+				};
+				const smartParams = generateSmartParamValidation(routePath, hasServerValidation);
 				const entry = `'${routePath}': {
           paramsValidation: ${smartParams.paramsValidation},
           searchParamsValidation: ${smartParams.searchParamsValidation},
