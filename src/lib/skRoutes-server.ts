@@ -1,4 +1,3 @@
-import { load } from '../routes/test-search-only/+page.js';
 import {
 	getUrlParams,
 	createUrlGenerator,
