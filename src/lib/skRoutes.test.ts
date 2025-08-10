@@ -14,12 +14,12 @@ const userSearchParamsSchema = z.object({
 
 describe('skRoutes with Standard Schema', () => {
 	const { urlGenerator } = skRoutes({
-		config: {
+		config: async () => ({
 			'/users/[id]': {
 				paramsValidation: userParamsSchema,
 				searchParamsValidation: userSearchParamsSchema
 			}
-		},
+		}),
 		errorURL: '/error'
 	});
 

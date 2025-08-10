@@ -1,3 +1,27 @@
+export const configHandler = <T extends RouteConfig>(config: () => Promise<T>) => {
+	let internalConfig: T | undefined;
+
+	const loadConfig = async (): Promise<void> => {
+		if (typeof config === 'function') {
+			internalConfig = await config();
+		} else {
+			internalConfig = config;
+		}
+	};
+
+	const getConfig = (): T => {
+		if (!internalConfig) {
+			throw new Error('Config not loaded');
+		}
+		return internalConfig;
+	};
+
+	return {
+		loadConfig,
+		getConfig
+	};
+};
+
 function isObject(item: any): boolean {
 	return item && typeof item === 'object' && !Array.isArray(item);
 }
@@ -165,12 +189,15 @@ export function createUpdateParams<Config extends RouteConfig, Address extends k
 	};
 }
 
-export function createUrlGenerator<Config extends RouteConfig>(config: Config, errorURL: string) {
+export function createUrlGenerator<Config extends RouteConfig>(
+	config: () => Config,
+	errorURL: string
+) {
 	return <Address extends keyof Config>(
 		input: UrlGeneratorInput<Config, Address>
 	): UrlGeneratorResult<Config, Address> => {
 		try {
-			const routeDetails = config[input.address];
+			const routeDetails = config()[input.address];
 			if (!routeDetails) {
 				throw new Error(`Route not found: ${String(input.address)}`);
 			}

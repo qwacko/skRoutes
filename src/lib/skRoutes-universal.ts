@@ -7,7 +7,8 @@ import {
 	type ParamsType,
 	type SearchParamsType,
 	type ValidatedParamsType,
-	type ValidatedSearchParamsType
+	type ValidatedSearchParamsType,
+	configHandler
 } from './helpers.js';
 
 /**
@@ -77,8 +78,10 @@ export function skRoutesUniversal<Config extends UniversalRouteConfig>({
 	config
 }: {
 	errorURL: string;
-	config: Config;
+	config: () => Promise<Config>;
 }) {
+	const { loadConfig, getConfig } = configHandler(config);
+	loadConfig();
 	/**
 	 * Universal URL generator for configured routes with parameter validation.
 	 * Works in both server and client contexts.
@@ -89,7 +92,7 @@ export function skRoutesUniversal<Config extends UniversalRouteConfig>({
 	 * @param input.searchParamsValue - Search parameters object
 	 * @returns Object containing the generated URL and validated parameters
 	 */
-	const urlGenerator = createUrlGenerator(config, errorURL);
+	const urlGenerator = createUrlGenerator(getConfig, errorURL);
 
 	/**
 	 * Creates universal route information and parameter update utilities for a specific route.
@@ -184,5 +187,5 @@ export function skRoutesUniversal<Config extends UniversalRouteConfig>({
 		};
 	};
 
-	return { urlGenerator, universalPageInfo };
+	return { urlGenerator, universalPageInfo, loadConfig, getConfig };
 }

@@ -1,7 +1,10 @@
 import { skRoutes } from './skRoutes.svelte.js';
-import { clientRouteConfig, pluginOptions } from './.generated/skroutes-client-config.js';
 
-export const { pageInfo, urlGenerator } = skRoutes({
-	config: clientRouteConfig,
-	errorURL: pluginOptions.errorURL || '/error'
+export const {
+	pageInfo,
+	urlGenerator,
+	loadConfig: clientLoadRouteConfig
+} = skRoutes({
+	config: async () => (await import('./.generated/skroutes-client-config.js')).clientRouteConfig,
+	errorURL: '/error'
 });
