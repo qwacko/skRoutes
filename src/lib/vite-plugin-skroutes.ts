@@ -23,8 +23,41 @@
  */
 
 import type { Plugin } from 'vite';
-import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
+
+// Runtime environment check to prevent execution in browser
+const isNodeEnvironment = () => {
+	return (
+		typeof process !== 'undefined' &&
+		process.versions &&
+		process.versions.node &&
+		typeof window === 'undefined'
+	);
+};
+
+// Dynamic imports that only happen in Node.js environment
+let fsModule: any = null;
+let pathModule: any = null;
+
+const ensureNodeModules = async () => {
+	if (!isNodeEnvironment()) {
+		throw new Error('skRoutes plugin can only be used in Node.js environment (during build time)');
+	}
+
+	if (!fsModule || !pathModule) {
+		fsModule = await import('fs');
+		pathModule = await import('path');
+	}
+
+	return {
+		readFileSync: fsModule.readFileSync,
+		existsSync: fsModule.existsSync,
+		readdirSync: fsModule.readdirSync,
+		statSync: fsModule.statSync,
+		writeFileSync: fsModule.writeFileSync,
+		mkdirSync: fsModule.mkdirSync,
+		join: pathModule.join
+	};
+};
 
 /**
  * Strategy for handling TypeScript types of unconfigured route parameters.
@@ -203,10 +236,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		configResolved(config) {
 			root = config.root;
 		},
-		buildStart() {
+		async buildStart() {
 			// Generate both server and client config files at build start
-			generateServerConfigFile();
-			generateClientConfigFile();
+			await generateServerConfigFile();
+			await generateClientConfigFile();
 		},
 		async handleHotUpdate({ file, server }) {
 			// Regenerate config when page or server files change
@@ -218,14 +251,15 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 			});
 
 			if (isRelevantFile) {
-				generateServerConfigFile();
-				generateClientConfigFile();
+				await generateServerConfigFile();
+				await generateClientConfigFile();
 			}
 		}
 	};
 
-	function generateServerConfigFile(): void {
-		const configContent = generateServerConfigModule();
+	async function generateServerConfigFile(): Promise<void> {
+		const { join, writeFileSync, mkdirSync, existsSync } = await ensureNodeModules();
+		const configContent = await generateServerConfigModule();
 		const configPath = join(root, serverOutputPath);
 
 		// Ensure directory exists
@@ -237,8 +271,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		writeFileSync(configPath, configContent, 'utf-8');
 	}
 
-	function generateClientConfigFile(): void {
-		const configContent = generateClientConfigModule();
+	async function generateClientConfigFile(): Promise<void> {
+		const { join, writeFileSync, mkdirSync, existsSync } = await ensureNodeModules();
+		const configContent = await generateClientConfigModule();
 		const configPath = join(root, clientOutputPath);
 
 		// Ensure directory exists
@@ -267,7 +302,8 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		return importPath;
 	}
 
-	function getAllRoutes(): string[] {
+	async function getAllRoutes(): Promise<string[]> {
+		const { join, existsSync, readdirSync, statSync } = await ensureNodeModules();
 		const routes: string[] = [];
 		const routesDir = join(root, routesDirectory);
 
@@ -462,7 +498,10 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		}
 	}
 
-	function generateSmartParamValidation(routePath: string, hasServerValidation?: { params?: boolean; searchParams?: boolean }): {
+	function generateSmartParamValidation(
+		routePath: string,
+		hasServerValidation?: { params?: boolean; searchParams?: boolean }
+	): {
 		paramsValidation: string;
 		searchParamsValidation: string;
 	} {
@@ -698,9 +737,9 @@ export function skRoutesPlugin(options: PluginOptions = {}): Plugin {
 		return { paramsType, searchParamsType };
 	}
 
-	function generateServerConfigModule(): string {
-		const allSchemas = scanForAllSchemas(); // Scan both client and server files
-		const allRoutes = getAllRoutes();
+	async function generateServerConfigModule(): Promise<string> {
+		const allSchemas = await scanForAllSchemas(); // Scan both client and server files
+		const allRoutes = await getAllRoutes();
 
 		const schemaImports: string[] = [];
 		const configEntries: string[] = [];
@@ -881,10 +920,10 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 `;
 	}
 
-	function generateClientConfigModule(): string {
-		const clientSchemas = scanForSchemas(); // Only client-side files
-		const allServerSchemas = scanForAllSchemas(); // Both client and server files
-		const allRoutes = getAllRoutes();
+	async function generateClientConfigModule(): Promise<string> {
+		const clientSchemas = await scanForSchemas(); // Only client-side files
+		const allServerSchemas = await scanForAllSchemas(); // Both client and server files
+		const allRoutes = await getAllRoutes();
 
 		const schemaImports: string[] = [];
 		const typeOnlyImports: string[] = [];
@@ -1233,7 +1272,8 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 `;
 	}
 
-	function scanForSchemas(): SchemaDefinition[] {
+	async function scanForSchemas(): Promise<SchemaDefinition[]> {
+		const { join, existsSync, readdirSync, statSync, readFileSync } = await ensureNodeModules();
 		const schemas: SchemaDefinition[] = [];
 		const routesDir = join(root, routesDirectory);
 
@@ -1278,7 +1318,8 @@ export const pluginOptions = ${JSON.stringify({ errorURL }, null, 2)};
 		return schemas;
 	}
 
-	function scanForAllSchemas(): SchemaDefinition[] {
+	async function scanForAllSchemas(): Promise<SchemaDefinition[]> {
+		const { join, existsSync, readdirSync, statSync, readFileSync } = await ensureNodeModules();
 		const schemas: SchemaDefinition[] = [];
 		const routesDir = join(root, routesDirectory);
 
